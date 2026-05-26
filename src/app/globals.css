@@ -1,26 +1,238 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------ */
+/*  Design tokens — Job Alerts, dark by default.                      */
+/*  Inspired by Linear / Vercel / Resend.                             */
+/* ------------------------------------------------------------------ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces — warm-tinted near-blacks rather than pure black.       */
+  --bg-base:       #08090d;
+  --bg-elevated:   #0f1115;
+  --bg-overlay:    #15171c;
+  --bg-hover:      #1c1f25;
+
+  /* Borders — subtle, low contrast.                                  */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-muted:  rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* Text — three-level hierarchy.                                    */
+  --text-primary:   #f5f5f7;
+  --text-secondary: #a8a8b3;
+  --text-tertiary:  #6b6d78;
+  --text-disabled:  #45474f;
+
+  /* Brand accent — indigo→violet gradient pair.                      */
+  --accent-50:  #eef0ff;
+  --accent-200: #c4caff;
+  --accent-400: #818cf8;
+  --accent-500: #6366f1;
+  --accent-600: #4f46e5;
+  --accent-700: #4338ca;
+
+  /* Status colors.                                                   */
+  --success-400: #4ade80;
+  --danger-400:  #f87171;
+  --warning-400: #fbbf24;
+
+  /* Focus ring — accent at low alpha for soft glow.                  */
+  --ring: rgba(129, 140, 248, 0.45);
+
+  /* Radii.                                                           */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Map design tokens into Tailwind utility classes.                 */
+  --color-bg:           var(--bg-base);
+  --color-bg-elevated:  var(--bg-elevated);
+  --color-bg-overlay:   var(--bg-overlay);
+  --color-bg-hover:     var(--bg-hover);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-muted:  var(--border-muted);
+  --color-border-strong: var(--border-strong);
+
+  --color-fg:           var(--text-primary);
+  --color-fg-muted:     var(--text-secondary);
+  --color-fg-subtle:    var(--text-tertiary);
+  --color-fg-disabled:  var(--text-disabled);
+
+  --color-accent-50:    var(--accent-50);
+  --color-accent-200:   var(--accent-200);
+  --color-accent-400:   var(--accent-400);
+  --color-accent-500:   var(--accent-500);
+  --color-accent-600:   var(--accent-600);
+  --color-accent-700:   var(--accent-700);
+
+  --color-success:      var(--success-400);
+  --color-danger:       var(--danger-400);
+  --color-warning:      var(--warning-400);
+
+  --font-sans:          var(--font-geist-sans);
+  --font-mono:          var(--font-geist-mono);
+
+  --radius-sm:          var(--radius-sm);
+  --radius-md:          var(--radius-md);
+  --radius-lg:          var(--radius-lg);
+  --radius-xl:          var(--radius-xl);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ------------------------------------------------------------------ */
+/*  Base styles                                                       */
+/* ------------------------------------------------------------------ */
+
+* {
+  border-color: var(--border-subtle);
+}
+
+html {
+  background: var(--bg-base);
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
 }
+
+::selection {
+  background: var(--accent-500);
+  color: #fff;
+}
+
+/* Form element resets so our inputs look intentional.                */
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Subtle scrollbars (Webkit/Chromium).                               */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-muted);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Hero background — a single, restrained ambient glow.              */
+/*  Used by the marketing landing page only.                          */
+/* ------------------------------------------------------------------ */
+
+.ambient-glow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ambient-glow::before,
+.ambient-glow::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(120px);
+  opacity: 0.45;
+}
+
+.ambient-glow::before {
+  width: 720px;
+  height: 720px;
+  top: -240px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.55), transparent 70%);
+}
+
+.ambient-glow::after {
+  width: 480px;
+  height: 480px;
+  top: 120px;
+  right: -160px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.35), transparent 70%);
+}
+
+/* Faint grid texture for hero — adds depth without visual noise.    */
+.grid-texture {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Animated gradient text — used sparingly for hero accent words.    */
+/* ------------------------------------------------------------------ */
+
+.text-gradient {
+  background: linear-gradient(120deg, #c4caff 0%, #818cf8 40%, #c084fc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Animations                                                        */
+/* ------------------------------------------------------------------ */
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in {
+  animation: fade-in 400ms ease-out both;
+}
+
+/* Stagger helpers — apply with style={{ animationDelay: '...ms' }}. */

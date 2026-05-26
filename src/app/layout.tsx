@@ -13,8 +13,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Job Alerts",
-  description: "Personalized daily job feed scored against your CV.",
+  title: {
+    default: "Job Alerts — A quieter way to job hunt",
+    template: "%s · Job Alerts",
+  },
+  description:
+    "An AI scores nine job boards against your CV every morning and emails you the handful that genuinely match. Private beta.",
+  metadataBase: new URL("https://job-alerts-app-three.vercel.app"),
 };
 
 export default function RootLayout({
@@ -27,7 +32,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }
