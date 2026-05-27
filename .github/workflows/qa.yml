@@ -1,0 +1,35 @@
+name: QA Tests
+
+# Runs on every push and pull request. Failing checks block green status.
+# Contributors should also run `npm run qa` locally before pushing — same
+# pipeline, same exit semantics, no surprises in CI.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run QA suite (types + lint + unit tests + build)
+        env:
+          # The `next build` step in QA needs these to resolve at compile
+          # time. Placeholder values are fine — no network call is made
+          # during a build, only at runtime against real Supabase.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder_anon_key
+        run: npm run qa
