@@ -1,43 +1,45 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ */
-/*  Design tokens — Job Alerts, dark by default.                      */
-/*  Inspired by Linear / Vercel / Resend.                             */
+/*  Design tokens — Job Alerts.                                       */
+/*  Dark base with a warm amber accent — the metaphor is morning      */
+/*  light reaching a quiet inbox.                                     */
 /* ------------------------------------------------------------------ */
 
 :root {
-  /* Surfaces — warm-tinted near-blacks rather than pure black.       */
-  --bg-base:       #08090d;
-  --bg-elevated:   #0f1115;
-  --bg-overlay:    #15171c;
-  --bg-hover:      #1c1f25;
+  /* Surfaces — near-blacks with a faint warm undertone.              */
+  --bg-base:       #0a0908;
+  --bg-elevated:   #121110;
+  --bg-overlay:    #18171a;
+  --bg-hover:      #1f1d1c;
 
   /* Borders — subtle, low contrast.                                  */
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-muted:  rgba(255, 255, 255, 0.10);
-  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-subtle: rgba(255, 244, 224, 0.05);
+  --border-muted:  rgba(255, 244, 224, 0.10);
+  --border-strong: rgba(255, 244, 224, 0.18);
 
   /* Text — three-level hierarchy.                                    */
-  --text-primary:   #f5f5f7;
-  --text-secondary: #a8a8b3;
-  --text-tertiary:  #6b6d78;
-  --text-disabled:  #45474f;
+  --text-primary:   #f8f5f0;
+  --text-secondary: #b0a89e;
+  --text-tertiary:  #75706a;
+  --text-disabled:  #45413d;
 
-  /* Brand accent — indigo→violet gradient pair.                      */
-  --accent-50:  #eef0ff;
-  --accent-200: #c4caff;
-  --accent-400: #818cf8;
-  --accent-500: #6366f1;
-  --accent-600: #4f46e5;
-  --accent-700: #4338ca;
+  /* Brand accent — amber / morning.                                  */
+  --accent-50:  #fff8eb;
+  --accent-200: #fde4a8;
+  --accent-300: #fbcf6e;
+  --accent-400: #f6b73b;
+  --accent-500: #ea991a;
+  --accent-600: #c47b11;
+  --accent-700: #985f0c;
 
   /* Status colors.                                                   */
-  --success-400: #4ade80;
-  --danger-400:  #f87171;
+  --success-400: #6ee7b7;
+  --danger-400:  #fb7185;
   --warning-400: #fbbf24;
 
   /* Focus ring — accent at low alpha for soft glow.                  */
-  --ring: rgba(129, 140, 248, 0.45);
+  --ring: rgba(246, 183, 59, 0.45);
 
   /* Radii.                                                           */
   --radius-sm: 6px;
@@ -65,6 +67,7 @@
 
   --color-accent-50:    var(--accent-50);
   --color-accent-200:   var(--accent-200);
+  --color-accent-300:   var(--accent-300);
   --color-accent-400:   var(--accent-400);
   --color-accent-500:   var(--accent-500);
   --color-accent-600:   var(--accent-600);
@@ -108,10 +111,9 @@ body {
 
 ::selection {
   background: var(--accent-500);
-  color: #fff;
+  color: #1a1208;
 }
 
-/* Form element resets so our inputs look intentional.                */
 input,
 button,
 textarea,
@@ -128,7 +130,6 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Subtle scrollbars (Webkit/Chromium).                               */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -145,11 +146,11 @@ button:disabled {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Hero background — a single, restrained ambient glow.              */
-/*  Used by the marketing landing page only.                          */
+/*  Sunrise — a single, very subtle warm wash anchored bottom-left.   */
+/*  Used only on the landing hero. No grid, no orbs, no blur stack.   */
 /* ------------------------------------------------------------------ */
 
-.ambient-glow {
+.sunrise {
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -157,54 +158,16 @@ button:disabled {
   z-index: 0;
 }
 
-.ambient-glow::before,
-.ambient-glow::after {
+.sunrise::before {
   content: "";
   position: absolute;
-  border-radius: 9999px;
-  filter: blur(120px);
-  opacity: 0.45;
-}
-
-.ambient-glow::before {
+  bottom: -300px;
+  left: -200px;
   width: 720px;
   height: 720px;
-  top: -240px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.55), transparent 70%);
-}
-
-.ambient-glow::after {
-  width: 480px;
-  height: 480px;
-  top: 120px;
-  right: -160px;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.35), transparent 70%);
-}
-
-/* Faint grid texture for hero — adds depth without visual noise.    */
-.grid-texture {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 64px 64px;
-  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Animated gradient text — used sparingly for hero accent words.    */
-/* ------------------------------------------------------------------ */
-
-.text-gradient {
-  background: linear-gradient(120deg, #c4caff 0%, #818cf8 40%, #c084fc 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(246, 183, 59, 0.18), transparent 65%);
+  filter: blur(40px);
 }
 
 /* ------------------------------------------------------------------ */
@@ -234,5 +197,3 @@ button:disabled {
 .animate-fade-in {
   animation: fade-in 400ms ease-out both;
 }
-
-/* Stagger helpers — apply with style={{ animationDelay: '...ms' }}. */

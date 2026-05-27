@@ -12,8 +12,8 @@ export const buttonStyles = cva(
     variants: {
       variant: {
         primary:
-          "bg-[var(--accent-500)] text-white shadow-[0_1px_0_0_rgba(255,255,255,0.12)_inset,0_8px_24px_-12px_rgba(99,102,241,0.55)] " +
-          "hover:bg-[var(--accent-600)] active:bg-[var(--accent-700)]",
+          "bg-[var(--accent-500)] text-[#1a1208] shadow-[0_1px_0_0_rgba(255,255,255,0.18)_inset,0_8px_24px_-10px_rgba(234,153,26,0.55)] " +
+          "hover:bg-[var(--accent-400)] active:bg-[var(--accent-600)]",
         secondary:
           "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-muted)] " +
           "hover:bg-[var(--bg-overlay)] hover:border-[var(--border-strong)]",

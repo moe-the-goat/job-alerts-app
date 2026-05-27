@@ -39,7 +39,9 @@ export default async function DashboardPage() {
           </div>
           <h1 className="mt-6 text-3xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-4xl">
             Welcome,{" "}
-            <span className="text-gradient">{user.email?.split("@")[0]}</span>
+            <span className="text-[var(--accent-400)]">
+              {user.email?.split("@")[0]}
+            </span>
           </h1>
           <p className="mt-4 text-base leading-relaxed text-[var(--text-secondary)]">
             Your account is ready. The full dashboard — daily matches and your

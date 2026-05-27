@@ -18,10 +18,10 @@ export function AuthShell({ title, subtitle, footer, children }: AuthShellProps)
         className="pointer-events-none absolute inset-0 overflow-hidden"
       >
         <div
-          className="absolute -top-40 left-1/2 h-[480px] w-[480px] -translate-x-1/2 rounded-full opacity-30 blur-[120px]"
+          className="absolute -top-40 left-1/2 h-[480px] w-[480px] -translate-x-1/2 rounded-full opacity-25 blur-[120px]"
           style={{
             background:
-              "radial-gradient(circle, rgba(99,102,241,0.55), transparent 70%)",
+              "radial-gradient(circle, rgba(246,183,59,0.45), transparent 70%)",
           }}
         />
       </div>
