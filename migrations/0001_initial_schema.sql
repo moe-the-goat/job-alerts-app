@@ -211,8 +211,21 @@ drop policy if exists feedback_self_all on public.feedback;
 create policy feedback_self_all on public.feedback
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create index if not exists idx_feedback_user_noted
-  on public.feedback (user_id, noted_at desc);
+-- Guarded: migration 0002 drops + rebuilds this table with
+-- `submitted_at` instead of `noted_at`. Re-running 0001 after 0002
+-- would otherwise fail trying to index a column that no longer exists.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'feedback'
+      and column_name = 'noted_at'
+  ) then
+    create index if not exists idx_feedback_user_noted
+      on public.feedback (user_id, noted_at desc);
+  end if;
+end $$;
 
 
 -- ---------- 8. Auto-create profile on signup ----------
