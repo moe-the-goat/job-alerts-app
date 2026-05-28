@@ -73,6 +73,10 @@ drop policy if exists feedback_self_all on public.feedback;
 create policy feedback_self_all on public.feedback
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Data API grants — append-only by contract, so no UPDATE / DELETE.
+grant select, insert on public.feedback to authenticated;
+grant usage on sequence public.feedback_id_seq to authenticated;
+
 create index if not exists idx_feedback_user_submitted
   on public.feedback (user_id, submitted_at desc);
 
@@ -93,6 +97,8 @@ drop policy if exists feedback_embeddings_self_select on public.feedback_embeddi
 create policy feedback_embeddings_self_select on public.feedback_embeddings
   for select using (auth.uid() = user_id);
 -- Worker writes via service_role.
+
+grant select on public.feedback_embeddings to authenticated;
 
 -- ivfflat on a per-user-filtered query benefits from low `lists` at small N.
 -- Tune later when corpus crosses ~10k rows per user.
@@ -134,6 +140,9 @@ drop policy if exists bookmarks_self_all on public.bookmarks;
 create policy bookmarks_self_all on public.bookmarks
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+grant select, insert, update, delete on public.bookmarks to authenticated;
+grant usage on sequence public.bookmarks_id_seq to authenticated;
+
 create index if not exists idx_bookmarks_user_updated
   on public.bookmarks (user_id, updated_at desc);
 
@@ -162,6 +171,8 @@ drop policy if exists reputation_authed_select on public.reputation;
 create policy reputation_authed_select on public.reputation
   for select using (auth.role() = 'authenticated');
 -- INSERT / UPDATE / DELETE only via service_role or an admin RPC (added later).
+
+grant select on public.reputation to authenticated;
 
 
 -- =============================================================

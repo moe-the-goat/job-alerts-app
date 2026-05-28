@@ -44,6 +44,9 @@ create policy profiles_self_update on public.profiles
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 -- No DELETE policy: account removal happens via auth.users CASCADE.
 
+-- Data API grants (Supabase Oct-30-2026 change — see 0005 for context).
+grant select, insert, update on public.profiles to authenticated;
+
 
 -- ---------- 2. PREFERENCES (1:1 user) ----------
 create table if not exists public.preferences (
@@ -67,6 +70,8 @@ alter table public.preferences enable row level security;
 drop policy if exists preferences_self_all on public.preferences;
 create policy preferences_self_all on public.preferences
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+grant select, insert, update, delete on public.preferences to authenticated;
 
 -- Partial index — the cron query (`WHERE is_active AND next_run_at <= now()`)
 -- only ever needs active rows; partial index keeps it small and fast.
@@ -99,6 +104,9 @@ drop policy if exists search_queries_self_all on public.search_queries;
 create policy search_queries_self_all on public.search_queries
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+grant select, insert, update, delete on public.search_queries to authenticated;
+grant usage on sequence public.search_queries_id_seq to authenticated;
+
 create index if not exists idx_search_queries_user_active
   on public.search_queries (user_id)
   where is_active = true;
@@ -129,6 +137,8 @@ create policy runs_self_select on public.runs
   for select using (auth.uid() = user_id);
 -- INSERT/UPDATE only via the worker's service_role key.
 
+grant select on public.runs to authenticated;
+
 create index if not exists idx_runs_user_started
   on public.runs (user_id, started_at desc);
 
@@ -149,6 +159,8 @@ drop policy if exists seen_jobs_self_select on public.seen_jobs;
 create policy seen_jobs_self_select on public.seen_jobs
   for select using (auth.uid() = user_id);
 -- The worker writes via service_role. Users read via the dashboard.
+
+grant select on public.seen_jobs to authenticated;
 
 create index if not exists idx_seen_jobs_user_eval
   on public.seen_jobs (user_id, evaluated_at);
@@ -187,6 +199,8 @@ drop policy if exists job_results_self_select on public.job_results;
 create policy job_results_self_select on public.job_results
   for select using (auth.uid() = user_id);
 
+grant select on public.job_results to authenticated;
+
 create index if not exists idx_job_results_user_created
   on public.job_results (user_id, created_at desc);
 create index if not exists idx_job_results_run
@@ -210,6 +224,10 @@ alter table public.feedback enable row level security;
 drop policy if exists feedback_self_all on public.feedback;
 create policy feedback_self_all on public.feedback
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Data API grants. Migration 0002 drops + recreates this table with
+-- a bigserial PK; grants are re-issued in 0002 against the new shape.
+grant select, insert, update, delete on public.feedback to authenticated;
 
 -- Guarded: migration 0002 drops + rebuilds this table with
 -- `submitted_at` instead of `noted_at`. Re-running 0001 after 0002
