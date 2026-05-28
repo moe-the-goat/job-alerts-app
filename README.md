@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Job Alerts — web app
 
-## Getting Started
+The multi-user web frontend for the Automated AI Job Intelligence System.
+Users sign up, upload a CV, configure search preferences, and receive an AI-scored
+morning email plus a personal dashboard for reactions and a private application
+tracker.
 
-First, run the development server:
+The Python pipeline that actually scrapes, scores, and emails lives in a
+separate repo: [`Automated-AI-Job-Intelligence-System`](https://github.com/moe-the-goat/Automated-AI-Job-Intelligence-System).
+This repo is the user-facing surface.
+
+## Stack
+
+- **Next.js 16** (App Router, Turbopack), React 19, TypeScript, Tailwind v4
+- **Supabase** — Postgres + Auth + Storage + Row-Level Security
+- **Vitest** + Testing Library for unit tests, ESLint, `tsc --noEmit` for typecheck
+
+## Local development
 
 ```bash
+npm install
+cp .env.local.example .env.local   # then fill in NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app expects a Supabase project with migrations 0001–0005 applied
+(see [migrations/README.md](migrations/README.md)).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Quality gate
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Before pushing, run the QA suite:
 
-## Learn More
+```bash
+npm run qa
+```
 
-To learn more about Next.js, take a look at the following resources:
+This runs, in order: `tsc --noEmit` → `eslint` → `vitest run` → `next build`.
+The same suite runs on every push via [`.github/workflows/qa.yml`](.github/workflows/qa.yml).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Add new tests under [`QA/unit/`](QA/unit) — Vitest picks up `*.test.{ts,tsx}` automatically.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Routes
 
-## Deploy on Vercel
+| Path                       | Purpose                                                    |
+| -------------------------- | ---------------------------------------------------------- |
+| `/`                        | Marketing page (email + dashboard preview)                 |
+| `/signup`, `/login`        | Email/password auth                                        |
+| `/forgot-password`         | Reset-password request                                     |
+| `/auth/callback`           | Supabase code-exchange landing                             |
+| `/auth/reset-password`     | Set a new password (gated by recovery session)             |
+| `/onboarding/cv`           | Upload PDF/DOCX, parse text, store under `profiles.cv_text`|
+| `/preferences`             | Delivery settings + searches list editor                   |
+| `/dashboard`               | Onboarding strip until ready, then redirects to Feedback   |
+| `/dashboard/feedback`      | Tab A — reactions on AI-scored jobs (B6a, in progress)     |
+| `/dashboard/tracker`       | Tab B — bookmarks kanban (B6b, in progress)                |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Source layout
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/                  # App Router pages, route handlers, server actions
+│   ├── actions/          # Server actions grouped by feature (auth, cv, preferences)
+│   ├── auth/             # OAuth callback + reset-password
+│   ├── dashboard/        # Workspace shell + tabs (route group: (workspace))
+│   ├── onboarding/       # CV upload flow
+│   └── preferences/      # Notification + searches editor
+├── components/
+│   ├── brand/            # Logo
+│   ├── layout/           # AppShell, AuthShell, marketing chrome
+│   ├── marketing/        # Landing-page artifacts
+│   └── ui/               # Primitives (Button, Input, Switch, Textarea)
+└── lib/
+    ├── supabase/         # SSR client + middleware session refresh
+    ├── cv-parser.ts      # PDF/DOCX → normalized text
+    └── utils.ts          # cn() class-merge helper
+```
+
+## Conventions
+
+- **Server actions** live in `src/app/actions/` and `"use server"`-tag the whole file.
+- **All mutations** scope by `user_id` on top of Supabase RLS (defense in depth).
+- **Design tokens** are CSS variables in `src/app/globals.css`, mapped into Tailwind via `@theme inline`.
+- **Route groups** like `(workspace)/` share a layout without changing URLs.
+- **Underscore folders** like `_lib/` and `_components/` are non-routable per Next.js convention.
+
+## Deployment
+
+Deployed to Vercel from `main`. Push to deploy — there is no separate release step.
