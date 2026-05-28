@@ -39,6 +39,9 @@ yarn-error.log*
 # local plan — never committed
 PLAN.md
 
+# Local-only agent rules — AGENTS.md is the public version of the same content
+CLAUDE.md
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
