@@ -85,11 +85,11 @@ create index if not exists idx_feedback_user_submitted
 create table if not exists public.feedback_embeddings (
   feedback_id  bigint primary key references public.feedback(id) on delete cascade,
   user_id      uuid   not null references public.profiles(user_id) on delete cascade,
-  embedding    vector(768),
+  embedding    vector(3072),                 -- gemini-embedding-2 returns 3072 dims (see 0008)
   embedded_at  timestamptz not null default now()
 );
 comment on table public.feedback_embeddings is
-  'Gemini Embedding 2 vectors for RAG retrieval. One row per feedback entry.';
+  'Gemini Embedding 2 (3072-dim) vectors for RAG retrieval. One row per feedback entry.';
 
 alter table public.feedback_embeddings enable row level security;
 
@@ -100,13 +100,10 @@ create policy feedback_embeddings_self_select on public.feedback_embeddings
 
 grant select on public.feedback_embeddings to authenticated;
 
--- ivfflat on a per-user-filtered query benefits from low `lists` at small N.
--- Tune later when corpus crosses ~10k rows per user.
-create index if not exists idx_feedback_embeddings_vec
-  on public.feedback_embeddings
-  using ivfflat (embedding vector_cosine_ops)
-  with (lists = 100);
-
+-- No ivfflat/hnsw index: pgvector caps those at 2000 dimensions, so a
+-- 3072-dim column can't use them. retrieve_relevant_feedback() ranks a
+-- user's vectors in Python (brute-force cosine), which is the right call at
+-- per-user corpus sizes (hundreds). The per-user b-tree below scopes the read.
 create index if not exists idx_feedback_embeddings_user
   on public.feedback_embeddings (user_id);
 

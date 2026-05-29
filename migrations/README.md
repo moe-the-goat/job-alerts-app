@@ -34,6 +34,7 @@ extends tables 0001 creates.
 | [0005_grant_data_api.sql](0005_grant_data_api.sql)                       | Explicit Data API GRANTs ahead of Supabase's Oct-30-2026 default change                         |
 | [0006_feedback_count_trigger.sql](0006_feedback_count_trigger.sql)       | Trigger + backfill so `profiles.feedback_count` stays honest on every feedback insert           |
 | [0007_profile_name_fields.sql](0007_profile_name_fields.sql)             | Adds `first_name`/`last_name`; signup trigger populates them + derived `display_name`           |
+| [0008_fix_embedding_dimensions.sql](0008_fix_embedding_dimensions.sql)   | Widens `feedback_embeddings.embedding` to `vector(3072)` and drops the ivfflat index            |
 
 ## Adding a new migration
 
