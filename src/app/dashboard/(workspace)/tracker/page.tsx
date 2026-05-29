@@ -1,57 +1,63 @@
 import type { Metadata } from "next";
-import { Bookmark, KanbanSquare } from "lucide-react";
+import { KanbanSquare } from "lucide-react";
+import { loadDashboardState } from "../../_lib/dashboard-state";
+import { Board } from "./_components/board";
+import { AddFromResults } from "./_components/add-from-results";
+import { loadBookmarks, loadBookmarkableJobs } from "./_lib/bookmark-data";
 
 export const metadata: Metadata = {
   title: "Tracker · Dashboard",
 };
 
-const COLUMNS = [
-  "Saved",
-  "Applied",
-  "Phone Screen",
-  "Interview",
-  "Offer",
-  "Closed",
-] as const;
+export default async function TrackerTab() {
+  const state = await loadDashboardState();
+  const [bookmarks, bookmarkable] = await Promise.all([
+    loadBookmarks(state.user.id),
+    loadBookmarkableJobs(state.user.id),
+  ]);
 
-export default function TrackerTab() {
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-dashed border-[var(--border-muted)] bg-[var(--bg-elevated)]/30 px-6 py-10 text-center">
-        <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--bg-overlay)] text-[var(--accent-400)] ring-1 ring-inset ring-[var(--border-muted)]">
-          <KanbanSquare className="h-5 w-5" />
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <h2 className="text-[17px] font-semibold tracking-tight text-[var(--text-primary)]">
+            Application tracker
+          </h2>
+          <p className="mt-0.5 text-[12.5px] text-[var(--text-tertiary)]">
+            {bookmarks.length === 0
+              ? "Bookmark jobs from Feedback or add them here — then move each one down the pipeline."
+              : `${bookmarks.length} job${bookmarks.length === 1 ? "" : "s"} tracked · move each card as it progresses.`}
+          </p>
         </div>
-        <h2 className="mt-4 text-[15px] font-medium text-[var(--text-primary)]">
-          Your application tracker
-        </h2>
-        <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
-          Bookmark jobs from the Feedback tab and they&apos;ll show up here as
-          a kanban — from Saved through Offer.
-        </p>
+        <AddFromResults jobs={bookmarkable} />
       </div>
 
-      {/* Visual placeholder of the kanban so the layout is honest about what's coming. */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {COLUMNS.map((col) => (
-          <KanbanColumn key={col} label={col} />
-        ))}
-      </div>
+      {bookmarks.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <Board bookmarks={bookmarks} />
+      )}
     </div>
   );
 }
 
-function KanbanColumn({ label }: { label: string }) {
+function EmptyState() {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/30 p-3 opacity-60">
-      <div className="flex items-center justify-between">
-        <span className="text-[11.5px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
-          {label}
-        </span>
-        <span className="text-[10.5px] text-[var(--text-disabled)]">0</span>
+    <div className="rounded-xl border border-dashed border-[var(--border-muted)] bg-[var(--bg-elevated)]/30 px-6 py-16 text-center">
+      <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--bg-overlay)] text-[var(--accent-400)] ring-1 ring-inset ring-[var(--border-muted)]">
+        <KanbanSquare className="h-5 w-5" />
       </div>
-      <div className="flex h-20 items-center justify-center rounded-md border border-dashed border-[var(--border-subtle)] bg-[var(--bg-base)]/40">
-        <Bookmark className="h-3.5 w-3.5 text-[var(--text-disabled)]" />
-      </div>
+      <h3 className="mt-4 text-[15px] font-medium text-[var(--text-primary)]">
+        Nothing tracked yet
+      </h3>
+      <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
+        Hit{" "}
+        <span className="font-medium text-[var(--text-primary)]">Bookmark</span> on
+        a job in the Feedback tab, or use{" "}
+        <span className="font-medium text-[var(--text-primary)]">Add from results</span>{" "}
+        above. Each job moves through Saved → Applied → Phone Screen → Interview
+        → Offer → Closed.
+      </p>
     </div>
   );
 }
