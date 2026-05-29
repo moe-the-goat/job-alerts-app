@@ -1,4 +1,4 @@
-import type { JobBoard, JobType } from "@/app/actions/preferences";
+import type { JobBoard, JobType } from "./constants";
 
 export interface SearchRow {
   id: number;

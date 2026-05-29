@@ -3,12 +3,12 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { AlertCircle, CheckCircle2, Mail, Save } from "lucide-react";
+import { savePreferencesAction } from "@/app/actions/preferences";
 import {
   FREQUENCY_HOURS,
-  savePreferencesAction,
   type FrequencyHours,
   type PrefState,
-} from "@/app/actions/preferences";
+} from "./constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";

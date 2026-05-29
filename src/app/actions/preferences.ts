@@ -2,32 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-
-export type PrefState = {
-  ok: boolean;
-  error?: string;
-  message?: string;
-};
-
-export const FREQUENCY_HOURS = [1, 24, 48, 168] as const;
-export type FrequencyHours = (typeof FREQUENCY_HOURS)[number];
-
-export const JOB_BOARDS = [
-  "linkedin",
-  "indeed",
-  "glassdoor",
-  "zip_recruiter",
-  "google",
-] as const;
-export type JobBoard = (typeof JOB_BOARDS)[number];
-
-export const JOB_TYPES = [
-  "fulltime",
-  "internship",
-  "contract",
-  "parttime",
-] as const;
-export type JobType = (typeof JOB_TYPES)[number];
+// Values + types live in a plain module — a "use server" file may only export
+// async Server Actions, so constants imported from here by client components
+// would otherwise become action references (see constants.ts).
+import {
+  FREQUENCY_HOURS,
+  JOB_BOARDS,
+  JOB_TYPES,
+  type FrequencyHours,
+  type JobBoard,
+  type JobType,
+  type PrefState,
+} from "@/app/preferences/constants";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

@@ -14,14 +14,16 @@ import {
 } from "lucide-react";
 import {
   deleteSearchAction,
-  JOB_BOARDS,
-  JOB_TYPES,
   toggleSearchAction,
   upsertSearchAction,
+} from "@/app/actions/preferences";
+import {
+  JOB_BOARDS,
+  JOB_TYPES,
   type JobBoard,
   type JobType,
   type PrefState,
-} from "@/app/actions/preferences";
+} from "./constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
