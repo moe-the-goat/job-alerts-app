@@ -34,7 +34,12 @@ export async function signupAction(
 ): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const firstName = String(formData.get("first_name") ?? "").trim();
+  const lastName = String(formData.get("last_name") ?? "").trim();
 
+  if (!firstName || !lastName) {
+    return { ok: false, error: "Please enter your first and last name." };
+  }
   if (!email || !password) {
     return { ok: false, error: "Please enter your email and a password." };
   }
@@ -49,6 +54,9 @@ export async function signupAction(
     email,
     password,
     options: {
+      // Stored on auth.users.raw_user_meta_data; the handle_new_user
+      // trigger (migration 0007) reads these into profiles at signup.
+      data: { first_name: firstName, last_name: lastName },
       emailRedirectTo: `${origin}/auth/callback?next=/dashboard`,
     },
   });

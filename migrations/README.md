@@ -33,6 +33,7 @@ extends tables 0001 creates.
 | [0004_search_queries_updated_at.sql](0004_search_queries_updated_at.sql) | Adds `updated_at` + touch trigger + index for stable sort                                       |
 | [0005_grant_data_api.sql](0005_grant_data_api.sql)                       | Explicit Data API GRANTs ahead of Supabase's Oct-30-2026 default change                         |
 | [0006_feedback_count_trigger.sql](0006_feedback_count_trigger.sql)       | Trigger + backfill so `profiles.feedback_count` stays honest on every feedback insert           |
+| [0007_profile_name_fields.sql](0007_profile_name_fields.sql)             | Adds `first_name`/`last_name`; signup trigger populates them + derived `display_name`           |
 
 ## Adding a new migration
 
