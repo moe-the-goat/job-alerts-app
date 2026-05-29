@@ -32,6 +32,7 @@ extends tables 0001 creates.
 | [0003_cv_storage.sql](0003_cv_storage.sql)                               | `cvs` Storage bucket with per-user folder RLS                                                   |
 | [0004_search_queries_updated_at.sql](0004_search_queries_updated_at.sql) | Adds `updated_at` + touch trigger + index for stable sort                                       |
 | [0005_grant_data_api.sql](0005_grant_data_api.sql)                       | Explicit Data API GRANTs ahead of Supabase's Oct-30-2026 default change                         |
+| [0006_feedback_count_trigger.sql](0006_feedback_count_trigger.sql)       | Trigger + backfill so `profiles.feedback_count` stays honest on every feedback insert           |
 
 ## Adding a new migration
 
