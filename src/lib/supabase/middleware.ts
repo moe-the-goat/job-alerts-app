@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { authCookieOptions } from "./cookie-options";
 
 export async function updateSession(request: NextRequest) {
   // Start from a pass-through response. setAll reassigns this (carrying any
@@ -14,6 +15,10 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // Persistent expiry on the rotated cookies the middleware writes on every
+      // request — otherwise a refresh could overwrite a persistent cookie with
+      // a session-only one. See cookie-options.ts.
+      cookieOptions: authCookieOptions,
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -24,7 +29,7 @@ export async function updateSession(request: NextRequest) {
           );
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options),
+            supabaseResponse.cookies.set(name, value, { ...authCookieOptions, ...options }),
           );
         },
       },
