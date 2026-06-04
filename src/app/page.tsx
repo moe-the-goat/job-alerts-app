@@ -1,12 +1,23 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { MarketingHeader } from "@/components/layout/marketing-header";
 import { MarketingFooter } from "@/components/layout/marketing-footer";
 import { EmailPreview } from "@/components/marketing/email-preview";
 import { DashboardPreview } from "@/components/marketing/dashboard-preview";
 import { buttonStyles } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/server";
 
-export default function Home() {
+export default async function Home() {
+  // Already signed in? Send them to the dashboard instead of the public
+  // marketing view — otherwise landing on "/" (e.g. via the logo) looks like
+  // being logged out even though the session is intact.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) redirect("/dashboard");
+
   return (
     <div className="flex min-h-screen flex-col">
       <MarketingHeader />
