@@ -32,13 +32,13 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           aria-describedby={describedById}
           className={cn(
             "w-full rounded-md px-3 py-2.5 text-sm leading-relaxed",
-            "bg-[var(--bg-elevated)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]",
-            "border border-[var(--border-muted)]",
+            "bg-[var(--surface-recessed)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]",
+            "border border-[var(--border-muted)] shadow-[var(--shadow-recessed)]",
             "outline-none transition-all duration-150 ease-out resize-y",
-            "focus:border-[var(--accent-500)] focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-0",
+            "focus:border-[var(--accent-500)] focus:shadow-[var(--shadow-recessed),0_0_0_3px_rgba(246,183,59,0.16)]",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             error &&
-              "border-[var(--danger-400)] focus:border-[var(--danger-400)] focus:ring-[rgba(248,113,113,0.35)]",
+              "border-[var(--danger-400)] focus:border-[var(--danger-400)] focus:shadow-[var(--shadow-recessed),0_0_0_3px_rgba(226,130,106,0.18)]",
             className,
           )}
           {...props}

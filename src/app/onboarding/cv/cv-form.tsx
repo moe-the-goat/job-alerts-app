@@ -230,10 +230,14 @@ function UploadDropZone({
       onDragLeave={() => setIsDragging(false)}
       onDrop={onDrop}
       className={[
-        "flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center transition-all duration-150",
+        // A recessed "well" — the one place on the page that visually
+        // invites something to be dropped into it.
+        "flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center",
+        "bg-[var(--surface-recessed)]/80 shadow-[var(--shadow-recessed)]",
+        "transition-all duration-200 ease-out motion-safe:will-change-transform",
         isDragging
-          ? "border-[var(--accent-500)] bg-[var(--accent-500)]/10"
-          : "border-[var(--border-muted)] bg-[var(--bg-elevated)]/40 hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/70",
+          ? "border-[var(--accent-500)] bg-[var(--accent-500)]/10 shadow-[var(--shadow-recessed),0_0_0_3px_rgba(246,183,59,0.16)] motion-safe:scale-[1.01]"
+          : "border-[var(--border-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/50",
         pending && "pointer-events-none opacity-60",
       ].join(" ")}
     >

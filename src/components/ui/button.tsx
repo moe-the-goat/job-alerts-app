@@ -7,16 +7,21 @@ export const buttonStyles = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium " +
     "transition-all duration-150 ease-out outline-none " +
     "focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-base)] " +
-    "disabled:opacity-50 disabled:pointer-events-none select-none",
+    "disabled:opacity-50 disabled:pointer-events-none select-none " +
+    // Tactile press — raised at rest, recessed on :active. Scale only
+    // when the user hasn't asked for reduced motion.
+    "motion-safe:active:scale-[0.985]",
   {
     variants: {
       variant: {
         primary:
           "bg-[var(--accent-500)] text-[#1a1208] shadow-[0_1px_0_0_rgba(255,255,255,0.18)_inset,0_8px_24px_-10px_rgba(234,153,26,0.55)] " +
-          "hover:bg-[var(--accent-400)] active:bg-[var(--accent-600)]",
+          "hover:bg-[color-mix(in_oklab,var(--accent-500),white_12%)] " +
+          "active:bg-[var(--accent-600)] active:shadow-[var(--shadow-recessed)]",
         secondary:
-          "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-muted)] " +
-          "hover:bg-[var(--bg-overlay)] hover:border-[var(--border-strong)]",
+          "bg-[var(--surface-raised)] text-[var(--text-primary)] border border-[var(--border-muted)] shadow-[var(--shadow-raised)] " +
+          "hover:bg-[var(--bg-overlay)] hover:border-[var(--border-strong)] " +
+          "active:shadow-[var(--shadow-recessed)]",
         ghost:
           "bg-transparent text-[var(--text-secondary)] " +
           "hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]",

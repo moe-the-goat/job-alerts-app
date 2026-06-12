@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { AlertCircle, Inbox } from "lucide-react";
 import { loadDashboardState } from "../../_lib/dashboard-state";
-import { JobCard } from "./_components/job-card";
+import { ResultsGrid } from "./_components/results-grid";
 import { RunPicker } from "./_components/run-picker";
 import {
   loadJobsForRun,
@@ -62,11 +62,7 @@ export default async function FeedbackTab({ searchParams }: FeedbackPageProps) {
   return (
     <div className="space-y-5">
       <FeedbackHeader runs={runs} activeRun={activeRun} jobCount={jobs.length} />
-      <div className="space-y-3">
-        {jobs.map((job) => (
-          <JobCard key={job.id} job={job} />
-        ))}
-      </div>
+      <ResultsGrid jobs={jobs} />
     </div>
   );
 }
@@ -83,7 +79,7 @@ function FeedbackHeader({
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-3">
       <div>
-        <h2 className="text-[17px] font-semibold tracking-tight text-[var(--text-primary)]">
+        <h2 className="font-serif text-[22px] tracking-tight text-[var(--text-primary)]">
           {isToday(activeRun.started_at) ? "Today's picks" : "Run picks"}
         </h2>
         <p className="mt-0.5 text-[12.5px] text-[var(--text-tertiary)]">
@@ -102,7 +98,7 @@ function EmptyState({ frequencyHours }: { frequencyHours: number | null }) {
       <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--bg-overlay)] text-[var(--accent-400)] ring-1 ring-inset ring-[var(--border-muted)]">
         <Inbox className="h-5 w-5" />
       </div>
-      <h2 className="mt-4 text-[15px] font-medium text-[var(--text-primary)]">
+      <h2 className="mt-4 font-serif text-[19px] text-[var(--text-primary)]">
         Your first morning is on the way
       </h2>
       <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">

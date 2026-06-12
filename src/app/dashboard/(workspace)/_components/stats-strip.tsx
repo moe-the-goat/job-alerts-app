@@ -3,9 +3,10 @@ import type { LastRun } from "../../_lib/dashboard-state";
 
 interface StatsStripProps {
   lastRun: LastRun | null;
+  nextRunAt?: string | null;
 }
 
-export function StatsStrip({ lastRun }: StatsStripProps) {
+export function StatsStrip({ lastRun, nextRunAt }: StatsStripProps) {
   if (!lastRun) {
     return (
       <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/40 px-5 py-4">
@@ -45,16 +46,18 @@ export function StatsStrip({ lastRun }: StatsStripProps) {
               {lastRun.ended_at && (
                 <> · took {formatDuration(lastRun.started_at, lastRun.ended_at)}</>
               )}
+              {nextRunAt && <> · next {formatNext(nextRunAt)}</>}
             </div>
           </div>
         </div>
 
         {status === "success" && (
-          <dl className="grid grid-cols-2 gap-x-5 gap-y-1 text-[11px] sm:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-x-5 gap-y-1 text-[11px] sm:grid-cols-5">
             <Metric label="Scraped" value={lastRun.scraped} />
             <Metric label="Filtered" value={lastRun.filtered} />
             <Metric label="Evaluated" value={lastRun.ai_evaluated} />
             <Metric label="Approved" value={lastRun.approved} accent />
+            <Metric label="Lower ranked" value={lastRun.lower_ranked} />
           </dl>
         )}
 
@@ -137,6 +140,17 @@ function formatRelative(iso: string): string {
   const diffDay = Math.floor(diffHr / 24);
   if (diffDay < 30) return `${diffDay}d ago`;
   return new Date(iso).toLocaleDateString();
+}
+
+function formatNext(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  if (d.getTime() <= Date.now()) return "on the next cron tick";
+  return d.toLocaleString(undefined, {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function formatDuration(start: string, end: string): string {

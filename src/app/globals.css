@@ -33,10 +33,43 @@
   --accent-600: #c47b11;
   --accent-700: #985f0c;
 
-  /* Status colors.                                                   */
-  --success-400: #6ee7b7;
-  --danger-400:  #fb7185;
-  --warning-400: #fbbf24;
+  /* Functional state colors — warm-earth family, not neon SaaS.      */
+  /* sage = success / good match, amber = warning / rate-limit,       */
+  /* terracotta = destructive / block.                                */
+  --sage-400:       #9bc4a0;
+  --sage-500:       #7dab84;
+  --amber-400:      #f6b73b;
+  --terracotta-400: #e2826a;
+  --terracotta-500: #cd6650;
+
+  /* Back-compat aliases — older components reference these names.    */
+  --success-400: var(--sage-400);
+  --danger-400:  var(--terracotta-400);
+  --warning-400: var(--amber-400);
+
+  /* Semantic surfaces (Linear-style elevation language).             */
+  --surface-base:     var(--bg-base);
+  --surface-raised:   var(--bg-elevated);
+  --surface-recessed: #070606;
+
+  /* Elevation — soft multi-layer shadows instead of harsh borders.   */
+  --shadow-raised:
+    0 1px 0 0 rgba(255, 244, 224, 0.04) inset,
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 4px 12px -4px rgba(0, 0, 0, 0.5);
+  --shadow-recessed:
+    0 1px 2px rgba(0, 0, 0, 0.55) inset,
+    0 1px 0 0 rgba(255, 244, 224, 0.03);
+  --shadow-overlay:
+    0 0 0 1px rgba(255, 244, 224, 0.07),
+    0 8px 16px -6px rgba(0, 0, 0, 0.6),
+    0 20px 48px -12px rgba(0, 0, 0, 0.7);
+
+  /* Motion — one small scale, guarded by motion-safe at point of use. */
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-slow: 250ms;
+  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Focus ring — accent at low alpha for soft glow.                  */
   --ring: rgba(246, 183, 59, 0.45);
@@ -77,8 +110,21 @@
   --color-danger:       var(--danger-400);
   --color-warning:      var(--warning-400);
 
+  --color-sage:         var(--sage-400);
+  --color-amber:        var(--amber-400);
+  --color-terracotta:   var(--terracotta-400);
+
+  --color-surface-base:     var(--surface-base);
+  --color-surface-raised:   var(--surface-raised);
+  --color-surface-recessed: var(--surface-recessed);
+
+  --shadow-raised:      var(--shadow-raised);
+  --shadow-recessed:    var(--shadow-recessed);
+  --shadow-overlay:     var(--shadow-overlay);
+
   --font-sans:          var(--font-geist-sans);
   --font-mono:          var(--font-geist-mono);
+  --font-serif:         var(--font-display-serif), Georgia, "Times New Roman", serif;
 
   --radius-sm:          var(--radius-sm);
   --radius-md:          var(--radius-md);
@@ -196,4 +242,44 @@ button:disabled {
 
 .animate-fade-in {
   animation: fade-in 400ms ease-out both;
+}
+
+/* Reduced motion: every animation/transition collapses to an instant state. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Inline-expandable rows — Tailwind v4 @starting-style, no JS lib.   */
+/*  Applied to the detail panel that mounts when a grid row expands.   */
+/* ------------------------------------------------------------------ */
+
+.row-detail-enter {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity var(--motion-base) var(--ease-soft),
+    translate var(--motion-base) var(--ease-soft);
+
+  @starting-style {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
+/* Suspicious rows get a single, slow, subtle terracotta pulse — once. */
+@keyframes severity-pulse {
+  0%   { box-shadow: inset 2px 0 0 0 rgba(226, 130, 106, 0); }
+  40%  { box-shadow: inset 2px 0 0 0 rgba(226, 130, 106, 0.8); }
+  100% { box-shadow: inset 2px 0 0 0 rgba(226, 130, 106, 0.45); }
+}
+
+.severity-pulse {
+  animation: severity-pulse 900ms var(--ease-soft) both;
 }

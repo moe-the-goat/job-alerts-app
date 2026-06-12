@@ -33,6 +33,7 @@ export interface JobResult {
   experience_fit: number | null;
   logistics_fit: number | null;
   ai_verdict: string | null;
+  description_excerpt: string | null;
   compensation: string | null;
   effort: "low" | "medium" | "high" | "unknown" | null;
   suspicious: boolean;
@@ -40,6 +41,13 @@ export interface JobResult {
   pre_flagged_trusted: boolean;
   similarity: number | null;
   created_at: string;
+  /**
+   * Worker-persisted provenance (task W1): "local" = Palestinian local
+   * sources, "global" = JobSpy/APIs. Optional because rows written before
+   * the W1 cutover have no value — the grid shows those untagged rows in
+   * a single section.
+   */
+  origin?: "global" | "local" | null;
 }
 
 export interface JobWithFeedback extends JobResult {

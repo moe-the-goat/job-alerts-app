@@ -104,7 +104,7 @@ export function PreferencesSection({
               ? `Next run scheduled for ${formatLocal(nextRunAt)}.`
               : "First run starts the next cron tick after you save."}
           </p>
-          <SaveButton />
+          <SaveButton saved={Boolean(state?.ok)} />
         </div>
       </form>
     </section>
@@ -158,12 +158,29 @@ const FREQ_META: Record<number, { label: string; hint: string }> = {
   168: { label: "Weekly", hint: "Quietest" },
 };
 
-function SaveButton() {
+function SaveButton({ saved }: { saved: boolean }) {
   const { pending } = useFormStatus();
+  // Kinetic save: Save → Saving… → Saved ✓ (sage ring) so the user sees
+  // the write land, not just a toast off to the side.
+  const showSaved = saved && !pending;
   return (
-    <Button type="submit" loading={pending} size="md">
-      {!pending && <Save className="h-4 w-4" />}
-      {pending ? "Saving…" : "Save preferences"}
+    <Button
+      type="submit"
+      loading={pending}
+      size="md"
+      className={
+        showSaved
+          ? "ring-2 ring-[var(--sage-400)]/50 ring-offset-2 ring-offset-[var(--bg-base)]"
+          : undefined
+      }
+    >
+      {!pending &&
+        (showSaved ? (
+          <CheckCircle2 className="h-4 w-4" />
+        ) : (
+          <Save className="h-4 w-4" />
+        ))}
+      {pending ? "Saving…" : showSaved ? "Saved" : "Save preferences"}
     </Button>
   );
 }
