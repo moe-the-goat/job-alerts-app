@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { WorkspaceProvider } from "@/components/workspace/workspace-context";
 import {
   groupByOrigin,
@@ -123,7 +123,11 @@ describe("<ResultsGrid />", () => {
       "/api/feedback",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ job_result_id: 1, feedback_type: "applied" }),
+        body: JSON.stringify({
+          job_result_id: 1,
+          feedback_type: "applied",
+          note: null,
+        }),
       }),
     );
     // Optimistic chip lands without waiting for the server.
@@ -165,5 +169,59 @@ describe("<ResultsGrid />", () => {
     expect(screen.getByTestId("results-grid").className).toContain("fixed");
     fireEvent.click(screen.getByRole("button", { name: "Exit focus mode" }));
     expect(screen.getByTestId("results-grid").className).not.toContain("fixed");
+  });
+
+  it("hides the note field until 'Add a note' is clicked", () => {
+    renderGrid([job()]);
+    fireEvent.click(screen.getByText("Frontend Engineer")); // expand
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Add a note/ }));
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+  });
+
+  it("sends the trimmed note along with the next reaction", async () => {
+    renderGrid([job()]);
+    fireEvent.click(screen.getByText("Frontend Engineer"));
+    fireEvent.click(screen.getByRole("button", { name: /Add a note/ }));
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "  too senior for me  " },
+    });
+    // Tap the "Not for me" reaction in the expanded detail.
+    fireEvent.click(screen.getByRole("button", { name: "Not for me" }));
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/feedback",
+        expect.objectContaining({
+          body: JSON.stringify({
+            job_result_id: 1,
+            feedback_type: "not_relevant",
+            note: "too senior for me",
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("backfills a note onto an already-given reaction via 'Save note'", async () => {
+    // Server-hydrated: this job already has an "applied" reaction.
+    renderGrid([job({ feedback: ["applied"] })]);
+    fireEvent.click(screen.getByText("Frontend Engineer"));
+    fireEvent.click(screen.getByRole("button", { name: /Add a note/ }));
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "great culture fit" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save note" }));
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/feedback",
+        expect.objectContaining({
+          body: JSON.stringify({
+            job_result_id: 1,
+            feedback_type: "applied",
+            note: "great culture fit",
+          }),
+        }),
+      ),
+    );
   });
 });

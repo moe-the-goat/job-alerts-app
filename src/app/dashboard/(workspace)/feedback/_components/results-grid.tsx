@@ -13,6 +13,7 @@ import {
   MapPin,
   MapPinOff,
   Maximize2,
+  MessageSquarePlus,
   Minimize2,
   MoreHorizontal,
   Shield,
@@ -110,16 +111,22 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
   }, [jobs]);
 
   const sendFeedback = React.useCallback(
-    async (job: JobWithFeedback, type: FeedbackType) => {
+    async (job: JobWithFeedback, type: FeedbackType, note?: string | null) => {
       const submitted = feedbackByJob[job.id] ?? [];
-      if (submitted.includes(type)) return; // append-only — repeat click is a no-op
+      const trimmedNote =
+        typeof note === "string" && note.trim().length > 0 ? note.trim() : null;
+      // Append-only on the reaction itself. A repeat tap is normally a no-op,
+      // but if it now carries a note we still send it so the API can backfill
+      // the note onto the existing feedback row (matches the email page).
+      if (submitted.includes(type) && !trimmedNote) return true;
       if (
         type === "block_company" &&
+        !submitted.includes(type) &&
         !window.confirm(
           `Block ${job.company ?? "this company"}? Their jobs stop appearing in future runs.`,
         )
       ) {
-        return;
+        return false;
       }
       setErrorByJob((e) => ({ ...e, [job.id]: null }));
       setPendingByJob((p) => ({ ...p, [job.id]: type }));
@@ -129,19 +136,25 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
         const res = await fetch("/api/feedback", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ job_result_id: job.id, feedback_type: type }),
+          body: JSON.stringify({
+            job_result_id: job.id,
+            feedback_type: type,
+            note: trimmedNote,
+          }),
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body?.error ?? `HTTP ${res.status}`);
         }
         router.refresh();
+        return true;
       } catch (err) {
         setFeedbackByJob((f) => ({ ...f, [job.id]: submitted }));
         setErrorByJob((e) => ({
           ...e,
           [job.id]: err instanceof Error ? err.message : "Something went wrong.",
         }));
+        return false;
       } finally {
         setPendingByJob((p) => ({ ...p, [job.id]: null }));
       }
@@ -298,7 +311,7 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
                   setFocusedId(job.id);
                   setExpandedId((open) => (open === job.id ? null : job.id));
                 }}
-                onAction={(type) => void sendFeedback(job, type)}
+                onAction={(type, note) => sendFeedback(job, type, note)}
               />
             ))}
           </div>
@@ -329,7 +342,7 @@ function Row({
   rowRef: (el: HTMLDivElement | null) => void;
   onFocusRow: () => void;
   onToggleExpand: () => void;
-  onAction: (type: FeedbackType) => void;
+  onAction: (type: FeedbackType, note?: string | null) => void | Promise<boolean>;
 }) {
   const severities = pickSeverities(job);
   const alarming = severities.includes("scam") || severities.includes("suspicious");
@@ -465,8 +478,38 @@ function RowDetail({
   job: JobWithFeedback;
   submitted: FeedbackType[];
   pending: FeedbackType | null;
-  onAction: (type: FeedbackType) => void;
+  onAction: (type: FeedbackType, note?: string | null) => void | Promise<boolean>;
 }) {
+  const [noteOpen, setNoteOpen] = React.useState(false);
+  const [note, setNote] = React.useState("");
+  const [noteSaved, setNoteSaved] = React.useState(false);
+
+  const hasReacted = submitted.length > 0;
+  // The reaction "Save note" should re-send to backfill the note onto an
+  // existing row. Prefer the most recently submitted non-destructive reaction
+  // (re-sending block_company would re-trigger its confirm dialog).
+  const lastReaction = [...submitted]
+    .reverse()
+    .find((t) => t !== "block_company") ?? null;
+
+  function reactWithNote(type: FeedbackType) {
+    const trimmed = note.trim();
+    const result = onAction(type, trimmed.length > 0 ? trimmed : null);
+    if (trimmed.length > 0) {
+      Promise.resolve(result).then((ok) => {
+        if (ok !== false) setNoteSaved(true);
+      });
+    }
+  }
+
+  function saveNote() {
+    const trimmed = note.trim();
+    if (trimmed.length === 0 || lastReaction == null || pending) return;
+    Promise.resolve(onAction(lastReaction, trimmed)).then((ok) => {
+      if (ok !== false) setNoteSaved(true);
+    });
+  }
+
   return (
     <div
       className="row-detail-enter border-b border-[rgba(205,217,229,0.05)] bg-[var(--surface-recessed)]/60 px-3 py-3"
@@ -529,7 +572,7 @@ function RowDetail({
                 aria-pressed={isActive}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onAction(type);
+                  reactWithNote(type);
                 }}
                 className={cn(
                   "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] outline-none transition-all duration-150",
@@ -566,9 +609,73 @@ function RowDetail({
           </a>
         )}
       </div>
+
+      {/* Optional free-text note — same idea as the email feedback page: kept
+          behind a toggle so the one-click path is untouched. The note rides
+          with the next reaction; if you've already reacted, "Save note"
+          re-sends your last reaction so the API backfills it onto that row. */}
+      {!noteOpen ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setNoteOpen(true);
+          }}
+          className="mt-2.5 inline-flex items-center gap-1.5 text-[11.5px] text-[var(--text-tertiary)] outline-none transition-colors hover:text-[var(--text-secondary)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        >
+          <MessageSquarePlus className="h-3.5 w-3.5" />
+          {noteSaved ? "Note added — edit" : "Add a note"}
+        </button>
+      ) : (
+        <div className="mt-2.5" onClick={(e) => e.stopPropagation()}>
+          <textarea
+            value={note}
+            onChange={(e) => {
+              setNote(e.target.value.slice(0, MAX_NOTE_LENGTH));
+              setNoteSaved(false);
+            }}
+            maxLength={MAX_NOTE_LENGTH}
+            rows={2}
+            placeholder="Why? This trains tomorrow's scoring (optional)."
+            className={cn(
+              "w-full resize-none rounded-lg bg-[var(--surface-recessed)] px-2.5 py-2 text-[12px] text-[var(--text-primary)]",
+              "placeholder:text-[var(--text-tertiary)] shadow-[var(--shadow-recessed)]",
+              "outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+            )}
+          />
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <span className="text-[10.5px] text-[var(--text-tertiary)]">
+              {hasReacted
+                ? "Save it onto your last reaction, or tap a new one to attach it."
+                : "Sent with your next reaction."}
+              {note.length > 0 && ` · ${note.length}/${MAX_NOTE_LENGTH}`}
+            </span>
+            {hasReacted && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  saveNote();
+                }}
+                disabled={pending !== null || note.trim().length === 0}
+                className={cn(
+                  "shrink-0 rounded-md px-2 py-1 text-[11px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+                  note.trim().length === 0 || pending !== null
+                    ? "text-[var(--text-tertiary)]"
+                    : "bg-[var(--accent-500)] text-white hover:bg-[var(--accent-400)]",
+                )}
+              >
+                {pending !== null ? "Saving…" : noteSaved ? "Saved" : "Save note"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const MAX_NOTE_LENGTH = 500;
 
 function MetaPair({ label, value }: { label: string; value: string }) {
   return (
