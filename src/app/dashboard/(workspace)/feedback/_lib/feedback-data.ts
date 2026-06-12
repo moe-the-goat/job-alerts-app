@@ -46,14 +46,11 @@ export function pickActiveRun(
   return runs[0];
 }
 
-// NOTE: `origin` (task W1) is intentionally NOT selected yet — selecting a
-// column that doesn't exist in the live schema makes PostgREST reject the
-// whole query. Add ", origin" here after migration 0011 is applied.
 const JOB_FIELDS =
   "id, run_id, title, company, location, job_url, " +
   "match_percentage, tech_fit, experience_fit, logistics_fit, ai_verdict, " +
   "description_excerpt, compensation, effort, suspicious, " +
-  "pre_flagged_low_quality, pre_flagged_trusted, similarity, created_at";
+  "pre_flagged_low_quality, pre_flagged_trusted, similarity, created_at, origin";
 
 export async function loadJobsForRun(
   userId: string,
