@@ -2,68 +2,59 @@
 
 /* ------------------------------------------------------------------ */
 /*  Design tokens — Job Alerts.                                       */
-/*  Dark base with a warm amber accent — the metaphor is morning      */
-/*  light reaching a quiet inbox.                                     */
+/*  Neutral, utilitarian dark UI: true greys (no warm cast), hairline */
+/*  borders, one cool blue accent used sparingly, zero glow.          */
 /* ------------------------------------------------------------------ */
 
 :root {
-  /* Surfaces — near-blacks with a faint warm undertone.              */
-  --bg-base:       #0a0908;
-  --bg-elevated:   #121110;
-  --bg-overlay:    #18171a;
-  --bg-hover:      #1f1d1c;
+  /* Surfaces — neutral charcoals, NOT pure black.                    */
+  --bg-base:       #0e1116;
+  --bg-elevated:   #151a21;
+  --bg-overlay:    #1b212a;
+  --bg-hover:      #212833;
 
-  /* Borders — subtle, low contrast.                                  */
-  --border-subtle: rgba(255, 244, 224, 0.05);
-  --border-muted:  rgba(255, 244, 224, 0.10);
-  --border-strong: rgba(255, 244, 224, 0.18);
+  /* Borders — neutral hairlines, low contrast.                       */
+  --border-subtle: rgba(205, 217, 229, 0.07);
+  --border-muted:  rgba(205, 217, 229, 0.12);
+  --border-strong: rgba(205, 217, 229, 0.20);
 
   /* Text — three-level hierarchy.                                    */
-  --text-primary:   #f8f5f0;
-  --text-secondary: #b0a89e;
-  --text-tertiary:  #75706a;
-  --text-disabled:  #45413d;
+  --text-primary:   #e6e9ee;
+  --text-secondary: #9aa3b0;
+  --text-tertiary:  #69727f;
+  --text-disabled:  #454c57;
 
-  /* Brand accent — amber / morning.                                  */
-  --accent-50:  #fff8eb;
-  --accent-200: #fde4a8;
-  --accent-300: #fbcf6e;
-  --accent-400: #f6b73b;
-  --accent-500: #ea991a;
-  --accent-600: #c47b11;
-  --accent-700: #985f0c;
+  /* Brand accent — one muted blue, used sparingly.                   */
+  --accent-50:  #eaf3ff;
+  --accent-200: #a8cdfb;
+  --accent-300: #79b1f7;
+  --accent-400: #539bf5;
+  --accent-500: #3b82e0;
+  --accent-600: #2c66b8;
+  --accent-700: #214e8e;
 
-  /* Functional state colors — warm-earth family, not neon SaaS.      */
-  /* sage = success / good match, amber = warning / rate-limit,       */
-  /* terracotta = destructive / block.                                */
-  --sage-400:       #9bc4a0;
-  --sage-500:       #7dab84;
-  --amber-400:      #f6b73b;
-  --terracotta-400: #e2826a;
-  --terracotta-500: #cd6650;
-
-  /* Back-compat aliases — older components reference these names.    */
-  --success-400: var(--sage-400);
-  --danger-400:  var(--terracotta-400);
-  --warning-400: var(--amber-400);
+  /* Functional state colors — muted, desaturated. Not neon SaaS.     */
+  --success-400: #57ab5a;
+  --success-500: #46954a;
+  --warning-400: #c69026;
+  --danger-400:  #e5534b;
+  --danger-500:  #cc4a42;
 
   /* Semantic surfaces (Linear-style elevation language).             */
   --surface-base:     var(--bg-base);
+  --surface-recessed: #0a0d11;
   --surface-raised:   var(--bg-elevated);
-  --surface-recessed: #070606;
 
-  /* Elevation — soft multi-layer shadows instead of harsh borders.   */
+  /* Elevation — flat by default. A hairline and a whisper of depth;  */
+  /* only floating overlays (menus, palette) get a real shadow.       */
   --shadow-raised:
-    0 1px 0 0 rgba(255, 244, 224, 0.04) inset,
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    0 4px 12px -4px rgba(0, 0, 0, 0.5);
+    0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-recessed:
-    0 1px 2px rgba(0, 0, 0, 0.55) inset,
-    0 1px 0 0 rgba(255, 244, 224, 0.03);
+    0 1px 2px rgba(0, 0, 0, 0.45) inset;
   --shadow-overlay:
-    0 0 0 1px rgba(255, 244, 224, 0.07),
-    0 8px 16px -6px rgba(0, 0, 0, 0.6),
-    0 20px 48px -12px rgba(0, 0, 0, 0.7);
+    0 0 0 1px rgba(205, 217, 229, 0.08),
+    0 8px 16px -6px rgba(0, 0, 0, 0.55),
+    0 20px 48px -12px rgba(0, 0, 0, 0.6);
 
   /* Motion — one small scale, guarded by motion-safe at point of use. */
   --motion-fast: 150ms;
@@ -71,8 +62,8 @@
   --motion-slow: 250ms;
   --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Focus ring — accent at low alpha for soft glow.                  */
-  --ring: rgba(246, 183, 59, 0.45);
+  /* Focus ring — accent at low alpha. Visible, not glowing.          */
+  --ring: rgba(83, 155, 245, 0.5);
 
   /* Radii.                                                           */
   --radius-sm: 6px;
@@ -110,10 +101,6 @@
   --color-danger:       var(--danger-400);
   --color-warning:      var(--warning-400);
 
-  --color-sage:         var(--sage-400);
-  --color-amber:        var(--amber-400);
-  --color-terracotta:   var(--terracotta-400);
-
   --color-surface-base:     var(--surface-base);
   --color-surface-raised:   var(--surface-raised);
   --color-surface-recessed: var(--surface-recessed);
@@ -124,7 +111,6 @@
 
   --font-sans:          var(--font-geist-sans);
   --font-mono:          var(--font-geist-mono);
-  --font-serif:         var(--font-display-serif), Georgia, "Times New Roman", serif;
 
   --radius-sm:          var(--radius-sm);
   --radius-md:          var(--radius-md);
@@ -156,8 +142,8 @@ body {
 }
 
 ::selection {
-  background: var(--accent-500);
-  color: #1a1208;
+  background: var(--accent-600);
+  color: #f2f7ff;
 }
 
 input,
@@ -189,31 +175,6 @@ button:disabled {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-strong);
-}
-
-/* ------------------------------------------------------------------ */
-/*  Sunrise — a single, very subtle warm wash anchored bottom-left.   */
-/*  Used only on the landing hero. No grid, no orbs, no blur stack.   */
-/* ------------------------------------------------------------------ */
-
-.sunrise {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.sunrise::before {
-  content: "";
-  position: absolute;
-  bottom: -300px;
-  left: -200px;
-  width: 720px;
-  height: 720px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(246, 183, 59, 0.18), transparent 65%);
-  filter: blur(40px);
 }
 
 /* ------------------------------------------------------------------ */
@@ -273,11 +234,11 @@ button:disabled {
   }
 }
 
-/* Suspicious rows get a single, slow, subtle terracotta pulse — once. */
+/* Suspicious rows get a single, slow, subtle danger pulse — once.    */
 @keyframes severity-pulse {
-  0%   { box-shadow: inset 2px 0 0 0 rgba(226, 130, 106, 0); }
-  40%  { box-shadow: inset 2px 0 0 0 rgba(226, 130, 106, 0.8); }
-  100% { box-shadow: inset 2px 0 0 0 rgba(226, 130, 106, 0.45); }
+  0%   { box-shadow: inset 2px 0 0 0 rgba(229, 83, 75, 0); }
+  40%  { box-shadow: inset 2px 0 0 0 rgba(229, 83, 75, 0.8); }
+  100% { box-shadow: inset 2px 0 0 0 rgba(229, 83, 75, 0.45); }
 }
 
 .severity-pulse {

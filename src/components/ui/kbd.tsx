@@ -30,7 +30,7 @@ export function Kbd({ keys, join = "+", className, ...props }: KbdProps) {
               "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[4px] px-1",
               "bg-[var(--bg-overlay)] font-mono text-[10px] font-medium text-[var(--text-secondary)]",
               "ring-1 ring-inset ring-[var(--border-muted)]",
-              "shadow-[0_1px_0_0_rgba(255,244,224,0.07)_inset,0_1.5px_0_0_rgba(0,0,0,0.5)]",
+              "shadow-[0_1px_0_0_rgba(205,217,229,0.08)_inset,0_1.5px_0_0_rgba(0,0,0,0.5)]",
             )}
           >
             {key}

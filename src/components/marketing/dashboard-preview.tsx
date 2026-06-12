@@ -14,22 +14,10 @@ export function DashboardPreview() {
     <article
       role="figure"
       aria-label="Sample dashboard view"
-      className="relative w-full overflow-hidden rounded-2xl border border-[var(--border-muted)] bg-[var(--bg-elevated)] shadow-[0_24px_60px_-30px_rgba(0,0,0,0.8)]"
+      className="relative w-full overflow-hidden rounded-xl border border-[var(--border-muted)] bg-[var(--bg-elevated)] shadow-[var(--shadow-raised)]"
     >
-      {/* Faux browser chrome — three dots + URL pill */}
-      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-2.5">
-        <div className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[var(--bg-hover)]" />
-          <span className="h-2 w-2 rounded-full bg-[var(--bg-hover)]" />
-          <span className="h-2 w-2 rounded-full bg-[var(--bg-hover)]" />
-        </div>
-        <div className="rounded-md bg-[var(--bg-overlay)] px-2.5 py-0.5 font-mono text-[10.5px] text-[var(--text-tertiary)]">
-          joalerts.app/dashboard
-        </div>
-        <div className="w-9" /> {/* spacer to balance dots */}
-      </div>
-
-      {/* In-app tab bar */}
+      {/* In-app tab bar — the figure is an honest crop of the app, no
+          faux browser chrome around it. */}
       <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-3">
         <nav className="flex items-center gap-1 text-[12.5px]">
           <span className="rounded-md bg-[var(--bg-overlay)] px-2.5 py-1 font-medium text-[var(--text-primary)] ring-1 ring-inset ring-[var(--border-muted)]">
@@ -129,7 +117,7 @@ function ScorePill({ score }: { score: number }) {
       className={
         "flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-[12.5px] font-medium " +
         (strong
-          ? "bg-gradient-to-br from-[var(--accent-300)]/15 to-[var(--accent-500)]/10 text-[var(--accent-300)] ring-1 ring-inset ring-[var(--accent-500)]/30"
+          ? "bg-[var(--accent-500)]/12 text-[var(--accent-300)] ring-1 ring-inset ring-[var(--accent-500)]/30"
           : "bg-[var(--bg-overlay)] text-[var(--text-secondary)] ring-1 ring-inset ring-[var(--border-muted)]")
       }
     >

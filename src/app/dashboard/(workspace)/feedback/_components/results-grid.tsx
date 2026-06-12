@@ -367,12 +367,12 @@ function Row({
           onMouseEnter={onFocusRow}
           data-focused={focused || undefined}
           className={cn(
-            "grid cursor-pointer items-center gap-x-3 border-b border-[rgba(255,244,224,0.04)] px-2 py-[7px]",
+            "grid cursor-pointer items-center gap-x-3 border-b border-[rgba(205,217,229,0.05)] px-2 py-[7px]",
             "grid-cols-[auto_minmax(0,1fr)_auto] @[480px]:grid-cols-[auto_minmax(0,1.8fr)_minmax(0,1fr)_auto] @[680px]:grid-cols-[auto_minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto]",
             "transition-colors duration-150",
             focused ? "bg-[var(--bg-hover)]" : "hover:bg-[var(--bg-elevated)]",
             alarming && "severity-pulse",
-            trusted && "shadow-[inset_2px_0_0_0_rgba(155,196,160,0.4)]",
+            trusted && "shadow-[inset_2px_0_0_0_rgba(87,171,90,0.4)]",
           )}
         >
           <MatchScore
@@ -390,7 +390,7 @@ function Row({
               <SeverityBadge key={kind} kind={kind} />
             ))}
             {submitted.length > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-[var(--sage-400)]">
+              <span className="inline-flex items-center gap-0.5 text-[10px] text-[var(--success-400)]">
                 <Check className="h-3 w-3" />
                 {submitted.includes("applied") ? "applied" : "noted"}
               </span>
@@ -417,7 +417,7 @@ function Row({
         </div>
 
         {error && (
-          <p className="flex items-center gap-1 px-2 py-1 text-[10.5px] text-[var(--terracotta-400)]">
+          <p className="flex items-center gap-1 px-2 py-1 text-[10.5px] text-[var(--danger-400)]">
             <AlertCircle className="h-3 w-3" />
             {error}
           </p>
@@ -469,7 +469,7 @@ function RowDetail({
 }) {
   return (
     <div
-      className="row-detail-enter border-b border-[rgba(255,244,224,0.04)] bg-[var(--surface-recessed)]/60 px-3 py-3"
+      className="row-detail-enter border-b border-[rgba(205,217,229,0.05)] bg-[var(--surface-recessed)]/60 px-3 py-3"
       data-testid={`row-detail-${job.id}`}
     >
       <div className="grid gap-3 @[640px]:grid-cols-[3fr_2fr]">
@@ -537,7 +537,7 @@ function RowDetail({
                   "disabled:cursor-default",
                   isActive
                     ? destructive
-                      ? "bg-[var(--terracotta-400)]/15 text-[var(--terracotta-400)] ring-1 ring-inset ring-[var(--terracotta-400)]/30"
+                      ? "bg-[var(--danger-400)]/15 text-[var(--danger-400)] ring-1 ring-inset ring-[var(--danger-400)]/30"
                       : "bg-[var(--accent-500)]/15 text-[var(--accent-300)] ring-1 ring-inset ring-[var(--accent-500)]/30"
                     : "bg-[var(--bg-overlay)] text-[var(--text-secondary)] ring-1 ring-inset ring-[var(--border-muted)] hover:text-[var(--text-primary)] hover:ring-[var(--border-strong)]",
                 )}

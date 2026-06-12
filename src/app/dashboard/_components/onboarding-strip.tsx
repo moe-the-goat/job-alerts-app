@@ -19,10 +19,7 @@ export function OnboardingStrip({ state }: OnboardingStripProps) {
           Getting set up
         </div>
         <h1 className="mt-6 text-3xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-4xl">
-          Welcome,{" "}
-          <span className="text-[var(--accent-400)]">
-            {user.email?.split("@")[0]}
-          </span>
+          Welcome, {user.email?.split("@")[0]}
         </h1>
         <p className="mt-4 text-base leading-relaxed text-[var(--text-secondary)]">
           Two quick steps and the morning email turns on. You can come back and
@@ -87,7 +84,7 @@ function OnboardingStep({
         done
           ? "border-[var(--border-subtle)] bg-[var(--bg-elevated)]/40"
           : active
-            ? "border-[var(--accent-500)]/30 bg-gradient-to-br from-[var(--accent-500)]/10 to-[var(--bg-elevated)]/60"
+            ? "border-[var(--accent-500)]/30 bg-[var(--accent-500)]/8"
             : "border-[var(--border-subtle)] bg-[var(--bg-elevated)]/30",
       ].join(" ")}
     >

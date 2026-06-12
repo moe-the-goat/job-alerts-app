@@ -236,7 +236,7 @@ function UploadDropZone({
         "bg-[var(--surface-recessed)]/80 shadow-[var(--shadow-recessed)]",
         "transition-all duration-200 ease-out motion-safe:will-change-transform",
         isDragging
-          ? "border-[var(--accent-500)] bg-[var(--accent-500)]/10 shadow-[var(--shadow-recessed),0_0_0_3px_rgba(246,183,59,0.16)] motion-safe:scale-[1.01]"
+          ? "border-[var(--accent-500)] bg-[var(--accent-500)]/10 shadow-[var(--shadow-recessed),0_0_0_3px_rgba(83,155,245,0.18)] motion-safe:scale-[1.01]"
           : "border-[var(--border-muted)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/50",
         pending && "pointer-events-none opacity-60",
       ].join(" ")}

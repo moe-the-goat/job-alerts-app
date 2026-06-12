@@ -160,7 +160,7 @@ const FREQ_META: Record<number, { label: string; hint: string }> = {
 
 function SaveButton({ saved }: { saved: boolean }) {
   const { pending } = useFormStatus();
-  // Kinetic save: Save → Saving… → Saved ✓ (sage ring) so the user sees
+  // Kinetic save: Save → Saving… → Saved ✓ (success ring) so the user sees
   // the write land, not just a toast off to the side.
   const showSaved = saved && !pending;
   return (
@@ -170,7 +170,7 @@ function SaveButton({ saved }: { saved: boolean }) {
       size="md"
       className={
         showSaved
-          ? "ring-2 ring-[var(--sage-400)]/50 ring-offset-2 ring-offset-[var(--bg-base)]"
+          ? "ring-2 ring-[var(--success-400)]/50 ring-offset-2 ring-offset-[var(--bg-base)]"
           : undefined
       }
     >

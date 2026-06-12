@@ -12,20 +12,6 @@ interface AuthShellProps {
 export function AuthShell({ title, subtitle, footer, children }: AuthShellProps) {
   return (
     <div className="relative flex min-h-screen flex-col">
-      {/* Subtle ambient backdrop — single off-center glow, much softer than landing */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-      >
-        <div
-          className="absolute -top-40 left-1/2 h-[480px] w-[480px] -translate-x-1/2 rounded-full opacity-25 blur-[120px]"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(246,183,59,0.45), transparent 70%)",
-          }}
-        />
-      </div>
-
       <header className="relative z-10 flex h-16 items-center px-6">
         <Logo />
         <Link
@@ -50,7 +36,7 @@ export function AuthShell({ title, subtitle, footer, children }: AuthShellProps)
             )}
           </div>
 
-          <div className="mt-8 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/70 p-6 backdrop-blur shadow-[0_24px_48px_-24px_rgba(0,0,0,0.5)]">
+          <div className="mt-8 rounded-xl border border-[var(--border-muted)] bg-[var(--bg-elevated)] p-6 shadow-[var(--shadow-raised)]">
             {children}
           </div>
 

@@ -23,8 +23,6 @@ export default async function Home() {
       <MarketingHeader />
 
       <main className="relative flex-1 overflow-hidden">
-        <div className="sunrise" aria-hidden />
-
         <section className="relative z-10 mx-auto w-full max-w-6xl px-6 pt-10 pb-20 sm:pt-16 sm:pb-24">
           {/* Pitch — centered, single visual focal point */}
           <div className="mx-auto max-w-3xl text-center">

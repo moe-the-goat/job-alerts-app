@@ -181,7 +181,7 @@ export function ContextMenu({
           className={cn(
             "row-detail-enter fixed z-50 min-w-[210px] rounded-lg p-1 outline-none",
             "bg-[var(--bg-overlay)]/90 backdrop-blur-md",
-            "ring-1 ring-inset ring-[rgba(255,244,224,0.08)]",
+            "ring-1 ring-inset ring-[rgba(205,217,229,0.09)]",
             "shadow-[var(--shadow-overlay)]",
           )}
           style={{ left: menu.x, top: menu.y }}
@@ -202,12 +202,12 @@ export function ContextMenu({
                   "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] outline-none",
                   "transition-colors duration-150",
                   item.destructive
-                    ? "text-[var(--terracotta-400)]"
+                    ? "text-[var(--danger-400)]"
                     : "text-[var(--text-secondary)]",
                   isActive &&
                     !item.disabled &&
                     (item.destructive
-                      ? "bg-[var(--terracotta-400)]/10 text-[var(--terracotta-400)]"
+                      ? "bg-[var(--danger-400)]/10 text-[var(--danger-400)]"
                       : "bg-[var(--bg-hover)] text-[var(--text-primary)]"),
                   item.disabled && "opacity-40 cursor-not-allowed",
                 )}

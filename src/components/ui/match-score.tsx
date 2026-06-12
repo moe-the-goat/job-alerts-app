@@ -16,11 +16,11 @@ export interface MatchScoreProps {
 
 const SEGMENTS = 5;
 
-/** Heatmap: sage = strong, amber = middling, terracotta = weak. */
+/** Heatmap: green = strong, yellow = middling, red = weak. */
 function scoreColor(score: number): string {
-  if (score >= 80) return "var(--sage-400)";
-  if (score >= 60) return "var(--amber-400)";
-  return "var(--terracotta-400)";
+  if (score >= 80) return "var(--success-400)";
+  if (score >= 60) return "var(--warning-400)";
+  return "var(--danger-400)";
 }
 
 /**
@@ -84,7 +84,7 @@ export function MatchScore({
             className="h-[10px] w-[3px] rounded-full transition-colors duration-150"
             style={{
               background:
-                i < filled ? color : "rgba(255, 244, 224, 0.10)",
+                i < filled ? color : "rgba(205, 217, 229, 0.11)",
             }}
           />
         ))}
@@ -104,7 +104,7 @@ export function MatchScore({
                 {label}
               </span>
               <span
-                className="inline-block h-[4px] w-14 overflow-hidden rounded-full bg-[rgba(255,244,224,0.08)]"
+                className="inline-block h-[4px] w-14 overflow-hidden rounded-full bg-[rgba(205,217,229,0.09)]"
                 aria-hidden
               >
                 <span

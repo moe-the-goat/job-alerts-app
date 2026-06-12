@@ -41,16 +41,16 @@ interface TokenPageData {
 }
 
 function scoreTone(score: number): string {
-  if (score >= 80) return "var(--sage-400)";
-  if (score >= 60) return "var(--amber-400)";
-  return "var(--terracotta-400)";
+  if (score >= 80) return "var(--success-400)";
+  if (score >= 60) return "var(--warning-400)";
+  return "var(--danger-400)";
 }
 
 function DeadLink({ reason }: { reason?: string }) {
   const expired = reason === "expired";
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 text-center">
-      <h1 className="font-serif text-[26px] text-[var(--text-primary)]">
+      <h1 className="text-[22px] font-semibold tracking-tight text-[var(--text-primary)]">
         {expired ? "This link has expired" : "This link isn't valid"}
       </h1>
       <p className="mt-3 text-[14px] leading-relaxed text-[var(--text-secondary)]">
@@ -95,7 +95,7 @@ export default async function EmailFeedbackPage({
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
       <header>
-        <h1 className="font-serif text-[26px] text-[var(--text-primary)]">
+        <h1 className="text-[22px] font-semibold tracking-tight text-[var(--text-primary)]">
           Rate today&rsquo;s matches
         </h1>
         <p className="mt-1.5 text-[13.5px] text-[var(--text-secondary)]">
@@ -150,7 +150,7 @@ export default async function EmailFeedbackPage({
                 </div>
 
                 {job.suspicious && (
-                  <p className="mt-2 flex items-center gap-1 text-[12px] text-[var(--amber-400)]">
+                  <p className="mt-2 flex items-center gap-1 text-[12px] text-[var(--warning-400)]">
                     <AlertTriangle className="h-3.5 w-3.5" />
                     Flagged as possibly suspicious — check before applying.
                   </p>

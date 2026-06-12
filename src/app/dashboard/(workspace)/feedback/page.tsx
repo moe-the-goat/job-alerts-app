@@ -79,7 +79,7 @@ function FeedbackHeader({
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-3">
       <div>
-        <h2 className="font-serif text-[22px] tracking-tight text-[var(--text-primary)]">
+        <h2 className="text-[20px] font-semibold tracking-tight text-[var(--text-primary)]">
           {isToday(activeRun.started_at) ? "Today's picks" : "Run picks"}
         </h2>
         <p className="mt-0.5 text-[12.5px] text-[var(--text-tertiary)]">
@@ -98,7 +98,7 @@ function EmptyState({ frequencyHours }: { frequencyHours: number | null }) {
       <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--bg-overlay)] text-[var(--accent-400)] ring-1 ring-inset ring-[var(--border-muted)]">
         <Inbox className="h-5 w-5" />
       </div>
-      <h2 className="mt-4 font-serif text-[19px] text-[var(--text-primary)]">
+      <h2 className="mt-4 text-[17px] font-semibold tracking-tight text-[var(--text-primary)]">
         Your first morning is on the way
       </h2>
       <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">

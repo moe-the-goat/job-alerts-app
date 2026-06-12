@@ -192,7 +192,7 @@ function SearchEditor({
   return (
     <form
       action={action}
-      className="rounded-xl border border-[var(--accent-500)]/30 bg-gradient-to-br from-[var(--accent-500)]/[0.04] to-transparent p-5 space-y-5 ring-1 ring-[var(--accent-500)]/15"
+      className="rounded-xl border border-[var(--accent-500)]/30 bg-[var(--accent-500)]/[0.05] p-5 space-y-5"
     >
       {search?.id && <input type="hidden" name="id" value={search.id} />}
       <input type="hidden" name="sites" value={sites.join(",")} />

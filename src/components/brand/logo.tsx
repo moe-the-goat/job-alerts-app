@@ -28,11 +28,10 @@ export function Logo({ size = "md", href = "/", className }: LogoProps) {
         className={cn(
           "relative inline-block",
           s.mark,
-          "rounded-md bg-gradient-to-br from-[var(--accent-300)] via-[var(--accent-500)] to-[var(--accent-700)]",
-          "shadow-[0_0_24px_-6px_rgba(234,153,26,0.55)]",
+          "rounded-md bg-[var(--accent-500)]",
         )}
       >
-        <span className="absolute inset-0 rounded-md ring-1 ring-inset ring-white/10" />
+        <span className="absolute inset-0 rounded-md ring-1 ring-inset ring-white/15" />
       </span>
       <span>
         job<span className="text-[var(--text-secondary)]">·</span>alerts

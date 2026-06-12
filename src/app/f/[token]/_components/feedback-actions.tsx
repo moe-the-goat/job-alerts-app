@@ -107,9 +107,9 @@ export function FeedbackActions({
                 "flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-medium",
                 "transition-colors duration-150 motion-safe:active:scale-[0.985]",
                 done
-                  ? "bg-[var(--sage-400)]/12 text-[var(--sage-400)] ring-1 ring-inset ring-[var(--sage-400)]/40"
+                  ? "bg-[var(--success-400)]/12 text-[var(--success-400)] ring-1 ring-inset ring-[var(--success-400)]/40"
                   : destructive
-                    ? "bg-[var(--surface-raised)] text-[var(--terracotta-400)] shadow-[var(--shadow-raised)]"
+                    ? "bg-[var(--surface-raised)] text-[var(--danger-400)] shadow-[var(--shadow-raised)]"
                     : "bg-[var(--surface-raised)] text-[var(--text-secondary)] shadow-[var(--shadow-raised)]",
                 !done && pending !== null && "opacity-50",
               )}
@@ -127,7 +127,7 @@ export function FeedbackActions({
         })}
       </div>
       {error && (
-        <p role="alert" className="mt-2 text-[12px] text-[var(--terracotta-400)]">
+        <p role="alert" className="mt-2 text-[12px] text-[var(--danger-400)]">
           {error}
         </p>
       )}

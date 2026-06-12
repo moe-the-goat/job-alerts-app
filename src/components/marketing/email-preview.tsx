@@ -1,4 +1,3 @@
-import { Star, Archive, Reply } from "lucide-react";
 import { SAMPLE_PICKS } from "./sample-picks";
 
 /**
@@ -15,27 +14,16 @@ export function EmailPreview() {
     <article
       role="figure"
       aria-label="Sample morning email"
-      className="relative w-full overflow-hidden rounded-2xl border border-[var(--border-muted)] bg-[var(--bg-elevated)] shadow-[0_24px_60px_-30px_rgba(0,0,0,0.8)]"
+      className="relative w-full overflow-hidden rounded-xl border border-[var(--border-muted)] bg-[var(--bg-elevated)] shadow-[var(--shadow-raised)]"
     >
-      {/* Email-client toolbar — minimal, recognizable */}
-      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-2.5">
-        <div className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
-          Inbox
-        </div>
-        <div className="flex items-center gap-3 text-[var(--text-tertiary)]">
-          <Star className="h-3.5 w-3.5" />
-          <Archive className="h-3.5 w-3.5" />
-          <Reply className="h-3.5 w-3.5" />
-        </div>
-      </div>
-
-      {/* Sender + metadata block */}
+      {/* Sender + metadata block — reads as an opened email without any
+          faux client chrome around it. */}
       <header className="space-y-3 px-5 pt-5 pb-4">
         <div className="flex items-start gap-3">
           {/* Sender avatar — the brand mark in miniature */}
           <div
             aria-hidden
-            className="h-9 w-9 shrink-0 rounded-md bg-gradient-to-br from-[var(--accent-300)] via-[var(--accent-500)] to-[var(--accent-700)] ring-1 ring-inset ring-white/10"
+            className="h-9 w-9 shrink-0 rounded-md bg-[var(--accent-500)] ring-1 ring-inset ring-white/15"
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline justify-between gap-2">
@@ -116,7 +104,7 @@ function ScorePill({ score }: { score: number }) {
       className={
         "flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-[12.5px] font-medium " +
         (strong
-          ? "bg-gradient-to-br from-[var(--accent-300)]/15 to-[var(--accent-500)]/10 text-[var(--accent-300)] ring-1 ring-inset ring-[var(--accent-500)]/30"
+          ? "bg-[var(--accent-500)]/12 text-[var(--accent-300)] ring-1 ring-inset ring-[var(--accent-500)]/30"
           : "bg-[var(--bg-overlay)] text-[var(--text-secondary)] ring-1 ring-inset ring-[var(--border-muted)]")
       }
     >
