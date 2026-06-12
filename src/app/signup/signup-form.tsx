@@ -12,7 +12,7 @@ const initialState: AuthState | undefined = undefined;
 export function SignupForm() {
   const [state, formAction] = useActionState(signupAction, initialState);
 
-  // After successful signup, swap form out for the "check your inbox" panel.
+  // After a successful request, swap the form for a "request received" panel.
   if (state?.ok && state.message) {
     return (
       <div className="flex flex-col items-center text-center">
@@ -20,7 +20,7 @@ export function SignupForm() {
           <CheckCircle2 className="h-5 w-5" />
         </div>
         <h2 className="mt-4 text-base font-medium text-[var(--text-primary)]">
-          Check your inbox
+          Request received
         </h2>
         <p className="mt-1.5 text-sm leading-relaxed text-[var(--text-secondary)]">
           {state.message}
@@ -31,6 +31,10 @@ export function SignupForm() {
 
   return (
     <form action={formAction} className="space-y-4">
+      <p className="text-xs leading-relaxed text-[var(--text-tertiary)]">
+        Job Alerts is in a small closed beta. Request access below — we&rsquo;ll
+        review it and, if approved, email you an invite to finish setting up.
+      </p>
       <div className="grid grid-cols-2 gap-3">
         <Input
           name="first_name"
@@ -58,13 +62,11 @@ export function SignupForm() {
         required
       />
       <Input
-        name="password"
-        type="password"
-        label="Password"
-        placeholder="At least 8 characters"
-        autoComplete="new-password"
-        minLength={8}
-        required
+        name="note"
+        type="text"
+        label="Anything we should know? (optional)"
+        placeholder="A line about why you'd like access"
+        maxLength={500}
       />
       {state?.error && (
         <p className="text-xs leading-relaxed text-[var(--danger-400)]">
@@ -80,7 +82,7 @@ function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" loading={pending} size="lg" width="full">
-      {pending ? "Creating account…" : "Create account"}
+      {pending ? "Sending request…" : "Request access"}
       {!pending && <ArrowRight className="h-4 w-4" />}
     </Button>
   );

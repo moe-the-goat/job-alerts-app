@@ -3,6 +3,14 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { sendEmail } from "@/lib/email-smtp";
+import {
+  ADMIN_EMAIL,
+  adminNotificationHtml,
+  mintToken,
+  siteOrigin,
+} from "@/lib/access-requests";
 
 export type AuthState = {
   ok: boolean;
@@ -28,44 +36,105 @@ async function resolveOriginFromHeaders(): Promise<string> {
   return host ? `${proto}://${host}` : "";
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Closed-beta signup is REQUEST-FIRST: it does NOT create a Supabase account.
+ * It files a pending access_request and emails the admin Approve/Reject links.
+ * The real account is created only on approval (via invite — see
+ * lib/access-requests.approveRequest). So no password is collected here.
+ */
 export async function signupAction(
   _prev: AuthState | undefined,
   formData: FormData,
 ): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const password = String(formData.get("password") ?? "");
   const firstName = String(formData.get("first_name") ?? "").trim();
   const lastName = String(formData.get("last_name") ?? "").trim();
+  const noteRaw = String(formData.get("note") ?? "").trim();
+  const note = noteRaw.length > 0 ? noteRaw.slice(0, 500) : null;
 
   if (!firstName || !lastName) {
     return { ok: false, error: "Please enter your first and last name." };
   }
-  if (!email || !password) {
-    return { ok: false, error: "Please enter your email and a password." };
-  }
-  if (password.length < 8) {
-    return { ok: false, error: "Password must be at least 8 characters." };
+  if (!EMAIL_RE.test(email)) {
+    return { ok: false, error: "Please enter a valid email address." };
   }
 
-  const supabase = await createClient();
-  const origin = await resolveOriginFromHeaders();
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return {
+      ok: false,
+      error: "Sign-ups aren't available right now. Please try again later.",
+    };
+  }
 
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      // Stored on auth.users.raw_user_meta_data; the handle_new_user
-      // trigger (migration 0007) reads these into profiles at signup.
-      data: { first_name: firstName, last_name: lastName },
-      emailRedirectTo: `${origin}/auth/callback?next=/dashboard`,
-    },
+  // Already approved + has an account? Point them at login instead of filing
+  // a duplicate request. (Best-effort; ignore lookup errors.)
+  const { data: existing } = await admin
+    .from("access_requests")
+    .select("id, status")
+    .eq("email", email)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: number; status: string }>();
+  if (existing?.status === "approved") {
+    return {
+      ok: false,
+      error: "This email is already approved — try logging in instead.",
+    };
+  }
+  if (existing?.status === "pending") {
+    return {
+      ok: true,
+      message:
+        "You've already requested access — we'll email you once it's reviewed.",
+    };
+  }
+
+  const { raw: token, hash: tokenHash } = mintToken();
+
+  const { data: inserted, error: insertErr } = await admin
+    .from("access_requests")
+    .insert({
+      email,
+      first_name: firstName,
+      last_name: lastName,
+      note,
+      decision_token_hash: tokenHash,
+    })
+    .select("id")
+    .single<{ id: number }>();
+
+  if (insertErr || !inserted) {
+    return {
+      ok: false,
+      error: "Couldn't submit your request. Please try again.",
+    };
+  }
+
+  // Email the admin with one-click decision links. Failure to send doesn't
+  // lose the request — it's in the table and visible on /admin.
+  const origin = siteOrigin() || (await resolveOriginFromHeaders());
+  const approveUrl = `${origin}/api/access-decision?token=${token}&action=approve`;
+  const rejectUrl = `${origin}/api/access-decision?token=${token}&action=reject`;
+  await sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `Access request: ${firstName} ${lastName}`,
+    html: adminNotificationHtml(
+      { first_name: firstName, last_name: lastName, email, note },
+      approveUrl,
+      rejectUrl,
+    ),
+    text: `New access request from ${firstName} ${lastName} <${email}>. Approve: ${approveUrl}  Reject: ${rejectUrl}`,
   });
 
-  if (error) return { ok: false, error: error.message };
   return {
     ok: true,
     message:
-      "Check your inbox for a verification link. Click it to finish signing up.",
+      "Request received! We'll review it and email you. If approved, you'll get an invite to finish setting up your account.",
   };
 }
 
