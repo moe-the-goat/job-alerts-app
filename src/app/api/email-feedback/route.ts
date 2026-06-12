@@ -23,7 +23,12 @@ interface EmailFeedbackPayload {
   token: string;
   job_result_id: number;
   feedback_type: EmailFeedbackType;
+  note: string | null;
 }
+
+// Mirror the RPC's cap so an oversized paste is rejected cheaply at the edge
+// rather than silently truncated in Postgres.
+const MAX_NOTE_LENGTH = 500;
 
 interface RpcResult {
   ok: boolean;
@@ -47,10 +52,21 @@ function parsePayload(input: unknown): EmailFeedbackPayload | null {
     return null;
   }
 
+  // Note is optional. Trim, drop blanks to null, and reject anything past the
+  // cap rather than silently truncating — a too-long note is a client bug.
+  let note: string | null = null;
+  if (raw.note != null) {
+    if (typeof raw.note !== "string") return null;
+    const trimmed = raw.note.trim();
+    if (trimmed.length > MAX_NOTE_LENGTH) return null;
+    note = trimmed.length > 0 ? trimmed : null;
+  }
+
   return {
     token,
     job_result_id: jobResultId,
     feedback_type: feedbackType as EmailFeedbackType,
+    note,
   };
 }
 
@@ -83,6 +99,7 @@ export async function POST(request: Request) {
     p_token: payload.token,
     p_job_result_id: payload.job_result_id,
     p_feedback_type: payload.feedback_type,
+    p_note: payload.note,
   });
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

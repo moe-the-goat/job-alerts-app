@@ -63,6 +63,7 @@ describe("<FeedbackActions />", () => {
           token: TOKEN,
           job_result_id: 42,
           feedback_type: "applied",
+          note: null,
         }),
       }),
     );
@@ -116,6 +117,64 @@ describe("<FeedbackActions />", () => {
     fireEvent.click(screen.getByRole("button", { name: "Not for me" }));
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(/network/i),
+    );
+  });
+
+  it("keeps the note hidden by default — one-tap path is untouched", () => {
+    renderActions();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /add a note/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("sends a typed note along with the next reaction", async () => {
+    fetchMock.mockReturnValue(ok());
+    renderActions();
+
+    fireEvent.click(screen.getByRole("button", { name: /add a note/i }));
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "  too senior for me  " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Not for me" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/email-feedback",
+      expect.objectContaining({
+        body: JSON.stringify({
+          token: TOKEN,
+          job_result_id: 42,
+          feedback_type: "not_relevant",
+          // trimmed, blanks collapsed
+          note: "too senior for me",
+        }),
+      }),
+    );
+  });
+
+  it("backfills a note onto an already-given reaction via Save note", async () => {
+    fetchMock.mockReturnValue(ok());
+    // User already marked Applied (hydrated as pressed) → Save note re-sends it.
+    renderActions(["applied"]);
+
+    fireEvent.click(screen.getByRole("button", { name: /add a note/i }));
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "applied via referral" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save note/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/email-feedback",
+      expect.objectContaining({
+        body: JSON.stringify({
+          token: TOKEN,
+          job_result_id: 42,
+          feedback_type: "applied",
+          note: "applied via referral",
+        }),
+      }),
     );
   });
 });
