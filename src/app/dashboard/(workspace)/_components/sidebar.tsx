@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { FileText, Mail, Play, Settings, Sparkles } from "lucide-react";
+import { FileText, Mail, Settings } from "lucide-react";
 import type { DashboardState } from "../../_lib/dashboard-state";
+import { RunControls } from "./run-controls";
 
 interface SidebarProps {
   state: DashboardState;
@@ -10,7 +11,12 @@ export function Sidebar({ state }: SidebarProps) {
   return (
     <aside className="space-y-4">
       <Section title="Quick actions">
-        <RunNowButton />
+        <RunControls
+          runsUsedToday={state.runsUsedToday}
+          maxRunsPerDay={state.maxRunsPerDay}
+          lastRunStatus={state.lastRun?.status ?? null}
+          nextRunAt={state.nextRunAt}
+        />
         <SidebarLink
           href="/preferences"
           icon={<Settings className="h-3.5 w-3.5" />}
@@ -102,29 +108,6 @@ function SidebarKV({
         {value}
       </span>
     </div>
-  );
-}
-
-/**
- * "Run now" is part of B6's contract but the worker can only act on it
- * once B7 ships. Rendered as a disabled affordance with an explanatory
- * tooltip so the empty state isn't surprising.
- */
-function RunNowButton() {
-  return (
-    <button
-      type="button"
-      disabled
-      title="Manual runs unlock once the multi-user worker is live."
-      className="flex w-full items-center gap-2 rounded-md border border-dashed border-[var(--border-muted)] bg-[var(--bg-overlay)]/40 px-2 py-1.5 text-[13px] text-[var(--text-tertiary)] cursor-not-allowed"
-    >
-      <Play className="h-3.5 w-3.5" />
-      Run now
-      <span className="ml-auto inline-flex items-center gap-1 rounded-sm bg-[var(--bg-base)] px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-wider text-[var(--accent-400)]">
-        <Sparkles className="h-2.5 w-2.5" />
-        Soon
-      </span>
-    </button>
   );
 }
 

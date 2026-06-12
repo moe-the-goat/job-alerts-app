@@ -15,6 +15,7 @@ const redirectMock = vi.fn((url: string) => {
 });
 const getUserMock = vi.fn();
 const fromMock = vi.fn();
+const rpcMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => redirectMock(url),
@@ -24,6 +25,7 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getUser: getUserMock },
     from: fromMock,
+    rpc: rpcMock,
   }),
 }));
 
@@ -38,10 +40,15 @@ interface Scenario {
   } | null;
   searches?: number;
   lastRun?: object | null;
+  runsUsedToday?: number | null;
 }
 
 function wireSupabase(s: Scenario) {
   getUserMock.mockResolvedValue({ data: { user: s.user ?? null } });
+  rpcMock.mockResolvedValue({
+    data: s.runsUsedToday === undefined ? 0 : s.runsUsedToday,
+    error: null,
+  });
   fromMock.mockImplementation((table: string) => {
     if (table === "profiles") {
       return {
@@ -96,6 +103,7 @@ beforeEach(() => {
   redirectMock.mockClear();
   getUserMock.mockReset();
   fromMock.mockReset();
+  rpcMock.mockReset();
 });
 
 describe("loadDashboardState", () => {
@@ -198,6 +206,45 @@ describe("loadDashboardState", () => {
     const state = await loadDashboardState();
     expect(state.ready).toBe(false);
     expect(state.isActive).toBe(false);
+  });
+
+  it("surfaces runsUsedToday from the RPC + the maxRunsPerDay constant", async () => {
+    wireSupabase({
+      user: { id: "u1", email: "a@b.co" },
+      profile: { cv_text: "a".repeat(500), cv_uploaded_at: null },
+      prefs: {
+        notification_email: "a@b.co",
+        frequency_hours: 24,
+        is_active: true,
+        next_run_at: null,
+      },
+      searches: 2,
+      runsUsedToday: 1,
+    });
+
+    const { loadDashboardState } = await freshLoader();
+    const state = await loadDashboardState();
+    expect(state.runsUsedToday).toBe(1);
+    expect(state.maxRunsPerDay).toBe(2);
+  });
+
+  it("coalesces runsUsedToday to 0 when the RPC is unavailable (pre-migration)", async () => {
+    wireSupabase({
+      user: { id: "u1", email: "a@b.co" },
+      profile: { cv_text: "a".repeat(500), cv_uploaded_at: null },
+      prefs: {
+        notification_email: "a@b.co",
+        frequency_hours: 24,
+        is_active: true,
+        next_run_at: null,
+      },
+      searches: 2,
+      runsUsedToday: null, // RPC returns null/error shape
+    });
+
+    const { loadDashboardState } = await freshLoader();
+    const state = await loadDashboardState();
+    expect(state.runsUsedToday).toBe(0);
   });
 });
 

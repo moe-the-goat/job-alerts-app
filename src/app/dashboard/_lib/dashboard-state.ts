@@ -28,7 +28,16 @@ export interface DashboardState {
   activeSearches: number;
   ready: boolean;
   lastRun: LastRun | null;
+  // Manual-run budget (migration 0014). runsUsedToday is the count since
+  // local-midnight Asia/Jerusalem via the runs_used_today RPC; maxRunsPerDay
+  // mirrors the worker's MAX_RUNS_PER_DAY so the UI and worker agree.
+  runsUsedToday: number;
+  maxRunsPerDay: number;
 }
+
+// Keep in lockstep with multi_user_runner.MAX_RUNS_PER_DAY. If you change one,
+// change the other — the worker is the enforcer; this is only for display.
+export const MAX_RUNS_PER_DAY = 2;
 
 /**
  * Single source of truth for the dashboard's read state. Wrapped in
@@ -43,7 +52,7 @@ export const loadDashboardState = cache(async (): Promise<DashboardState> => {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [profileRes, prefsRes, searchesRes, lastRunRes] = await Promise.all([
+  const [profileRes, prefsRes, searchesRes, lastRunRes, runsUsedRes] = await Promise.all([
     supabase
       .from("profiles")
       .select("cv_text, cv_uploaded_at")
@@ -68,6 +77,10 @@ export const loadDashboardState = cache(async (): Promise<DashboardState> => {
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // Daily-budget usage. If the RPC isn't available yet (migration 0014 not
+    // applied) this errors out — we coalesce to 0 so the dashboard still
+    // renders; the worker still enforces the real cap regardless.
+    supabase.rpc("runs_used_today", { p_user_id: user.id }),
   ]);
 
   const profile = profileRes.data;
@@ -92,6 +105,11 @@ export const loadDashboardState = cache(async (): Promise<DashboardState> => {
     activeSearches,
     ready,
     lastRun: (lastRunRes.data as LastRun | null) ?? null,
+    runsUsedToday:
+      typeof runsUsedRes.data === "number" && runsUsedRes.data >= 0
+        ? runsUsedRes.data
+        : 0,
+    maxRunsPerDay: MAX_RUNS_PER_DAY,
   };
 });
 
