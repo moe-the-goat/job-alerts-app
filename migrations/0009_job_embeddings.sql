@@ -42,6 +42,11 @@ grant select on public.job_embeddings to authenticated;
 create index if not exists idx_job_embeddings_user_recent
   on public.job_embeddings (user_id, embedded_at desc);
 
+-- Force PostgREST to pick up the new table immediately rather than waiting
+-- for its periodic schema-cache auto-reload (otherwise the first worker run
+-- after applying this can still see PGRST205 "table not found").
+notify pgrst, 'reload schema';
+
 
 -- =============================================================
 -- END migration 0009
