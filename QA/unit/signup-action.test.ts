@@ -66,7 +66,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => createAdminClientMock(),
 }));
 
-const sendEmailMock = vi.fn(async () => ({ ok: true }));
+const sendEmailMock = vi.fn(async (_args: unknown) => ({ ok: true }));
 vi.mock("@/lib/email-smtp", () => ({
   sendEmail: (args: unknown) => sendEmailMock(args),
 }));

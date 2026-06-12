@@ -7,7 +7,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Capture admin-client interactions.
-const inviteMock = vi.fn();
+const inviteMock =
+  vi.fn<(email: string, opts?: { data?: unknown; redirectTo?: string }) => Promise<unknown>>();
 const updates: { table: string; payload: Record<string, unknown> }[] = [];
 
 function makeAdminClient() {
@@ -27,7 +28,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => makeAdminClient(),
 }));
 
-const sendEmailMock = vi.fn(async () => ({ ok: true }));
+const sendEmailMock = vi.fn(async (_args: unknown) => ({ ok: true }));
 vi.mock("@/lib/email-smtp", () => ({
   sendEmail: (args: unknown) => sendEmailMock(args),
 }));
@@ -82,8 +83,8 @@ describe("approveRequest", () => {
     expect(inviteMock).toHaveBeenCalledTimes(1);
     const [email, opts] = inviteMock.mock.calls[0];
     expect(email).toBe("ada@example.com");
-    expect(opts.data).toMatchObject({ first_name: "Ada", last_name: "Lovelace" });
-    expect(opts.redirectTo).toContain("/auth/callback");
+    expect(opts?.data).toMatchObject({ first_name: "Ada", last_name: "Lovelace" });
+    expect(opts?.redirectTo).toContain("/auth/callback");
 
     // Whitelisted the new profile + marked the request approved.
     expect(updates).toEqual(
