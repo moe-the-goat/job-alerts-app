@@ -1,7 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Bookmark, BookmarkableJob, StatusHistoryEntry } from "./types";
+import type {
+  Bookmark,
+  BookmarkableJob,
+  LatestRunPicker,
+  StatusHistoryEntry,
+} from "./types";
 
-export type { Bookmark, BookmarkableJob };
+export type { Bookmark, BookmarkableJob, LatestRunPicker };
 
 // Shape of the bookmarks row + the embedded job_results columns we join in.
 interface BookmarkRow {
@@ -62,24 +67,46 @@ export async function loadBookmarks(userId: string): Promise<Bookmark[]> {
 }
 
 /**
- * Recent AI-approved results the user hasn't bookmarked yet — the candidate
- * list for the "Add from results" picker. Two scoped queries (their valid
- * results, their existing bookmark target ids) diffed in memory; at this
- * scale that's simpler and cheaper than a NOT IN subquery over the API.
+ * The "Add from results" picker payload: the valid jobs from the user's MOST
+ * RECENT run that they haven't tracked yet, plus the run's identity so the UI
+ * can label where the list came from ("From your run on …").
+ *
+ * Scoping to one run (rather than the last N results across all runs) means
+ * the user reviews exactly what the latest scrape surfaced — the natural unit
+ * for "what's new to track" — instead of a rolling window that mixes runs.
+ *
+ * Three scoped queries: the latest run id, that run's valid results, and the
+ * user's existing bookmark targets (diffed in memory). At this scale that's
+ * simpler and cheaper than a NOT IN subquery over the API. `is_valid = true`
+ * keeps the lower-ranked summary rows out of the picker.
  */
-export async function loadBookmarkableJobs(
+export async function loadLatestRunBookmarkableJobs(
   userId: string,
-  limit = 40,
-): Promise<BookmarkableJob[]> {
+): Promise<LatestRunPicker> {
   const supabase = await createClient();
+
+  // Latest run by start time. We don't filter on status: a run that produced
+  // results is worth offering even if it later ended 'failed' mid-write.
+  const { data: run } = await supabase
+    .from("runs")
+    .select("id, started_at")
+    .eq("user_id", userId)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: number; started_at: string }>();
+
+  if (!run) {
+    return { runStartedAt: null, totalInRun: 0, jobs: [] };
+  }
+
   const [resultsRes, bookmarkedRes] = await Promise.all([
     supabase
       .from("job_results")
       .select("id, title, company, location, match_percentage, created_at")
       .eq("user_id", userId)
+      .eq("run_id", run.id)
       .eq("is_valid", true)
-      .order("created_at", { ascending: false })
-      .limit(200)
+      .order("match_percentage", { ascending: false, nullsFirst: false })
       .returns<BookmarkableJob[]>(),
     supabase
       .from("bookmarks")
@@ -88,12 +115,17 @@ export async function loadBookmarkableJobs(
       .returns<{ job_result_id: number }[]>(),
   ]);
 
+  const inRun = resultsRes.data ?? [];
   const alreadyBookmarked = new Set(
     (bookmarkedRes.data ?? []).map((b) => b.job_result_id),
   );
-  return (resultsRes.data ?? [])
-    .filter((j) => !alreadyBookmarked.has(j.id))
-    .slice(0, limit);
+  const jobs = inRun.filter((j) => !alreadyBookmarked.has(j.id));
+
+  return {
+    runStartedAt: run.started_at,
+    totalInRun: inRun.length,
+    jobs,
+  };
 }
 
 function normalizeJoin(

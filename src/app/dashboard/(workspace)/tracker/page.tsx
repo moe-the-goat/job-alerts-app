@@ -3,7 +3,7 @@ import { KanbanSquare } from "lucide-react";
 import { loadDashboardState } from "../../_lib/dashboard-state";
 import { Board } from "./_components/board";
 import { AddFromResults } from "./_components/add-from-results";
-import { loadBookmarks, loadBookmarkableJobs } from "./_lib/bookmark-data";
+import { loadBookmarks, loadLatestRunBookmarkableJobs } from "./_lib/bookmark-data";
 
 export const metadata: Metadata = {
   title: "Tracker · Dashboard",
@@ -11,9 +11,9 @@ export const metadata: Metadata = {
 
 export default async function TrackerTab() {
   const state = await loadDashboardState();
-  const [bookmarks, bookmarkable] = await Promise.all([
+  const [bookmarks, latestRun] = await Promise.all([
     loadBookmarks(state.user.id),
-    loadBookmarkableJobs(state.user.id),
+    loadLatestRunBookmarkableJobs(state.user.id),
   ]);
 
   return (
@@ -29,7 +29,11 @@ export default async function TrackerTab() {
               : `${bookmarks.length} job${bookmarks.length === 1 ? "" : "s"} tracked · move each card as it progresses.`}
           </p>
         </div>
-        <AddFromResults jobs={bookmarkable} />
+        <AddFromResults
+          jobs={latestRun.jobs}
+          runStartedAt={latestRun.runStartedAt}
+          totalInRun={latestRun.totalInRun}
+        />
       </div>
 
       {bookmarks.length === 0 ? (

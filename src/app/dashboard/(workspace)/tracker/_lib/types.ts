@@ -72,3 +72,13 @@ export interface BookmarkableJob {
   match_percentage: number | null;
   created_at: string;
 }
+
+// What the "Add from results" picker shows: the jobs from the user's most
+// recent run that they haven't tracked yet, plus the run's identity so the
+// picker can label where the list came from. `runStartedAt` is null when the
+// user has no run yet (fresh account) — the picker then shows an empty state.
+export interface LatestRunPicker {
+  runStartedAt: string | null; // ISO timestamp of the run, or null if none
+  totalInRun: number; // valid results the run produced (before the tracked diff)
+  jobs: BookmarkableJob[]; // the still-untracked subset, newest first
+}
