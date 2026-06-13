@@ -91,17 +91,36 @@ export async function POST(request: Request) {
     );
   }
 
+  // One verdict per (user, job): a new reaction REPLACES the previous one
+  // rather than appending a contradictory second row (migration 0016 adds the
+  // unique index + the UPDATE grant this upsert needs). The latest reaction
+  // wins. A note only backfills when supplied — a bare re-tap that carries no
+  // note must not wipe a note saved on the existing row, so we resolve the
+  // note client-side... but upsert can't express "keep old note if new is
+  // null" in one statement. We read the existing row's note first and merge.
+  const { data: existing } = await supabase
+    .from("feedback")
+    .select("note")
+    .eq("user_id", user.id)
+    .eq("job_result_id", job.id)
+    .maybeSingle<{ note: string | null }>();
+  const mergedNote = payload.note ?? existing?.note ?? null;
+
   const { data: inserted, error: insertErr } = await supabase
     .from("feedback")
-    .insert({
-      user_id: user.id,
-      job_result_id: job.id,
-      job_url: job.job_url,
-      title: job.title,
-      company: job.company,
-      feedback_type: payload.feedback_type,
-      note: payload.note ?? null,
-    })
+    .upsert(
+      {
+        user_id: user.id,
+        job_result_id: job.id,
+        job_url: job.job_url,
+        title: job.title,
+        company: job.company,
+        feedback_type: payload.feedback_type,
+        note: mergedNote,
+        submitted_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,job_result_id" },
+    )
     .select("id")
     .single<{ id: number }>();
   if (insertErr || !inserted) {

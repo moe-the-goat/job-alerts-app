@@ -38,7 +38,7 @@ function job(overrides: Partial<JobWithFeedback> = {}): JobWithFeedback {
     pre_flagged_trusted: false,
     similarity: 0.91,
     created_at: "2026-06-12T06:00:00Z",
-    feedback: [],
+    feedback: null,
     ...overrides,
   };
 }
@@ -134,6 +134,47 @@ describe("<ResultsGrid />", () => {
     expect(await screen.findByText("applied")).toBeInTheDocument();
   });
 
+  it("replaces the verdict when a different reaction is tapped (one per job)", async () => {
+    renderGrid([job()]);
+    fireEvent.click(screen.getByText("Frontend Engineer")); // expand
+
+    // First reaction: applied.
+    fireEvent.click(screen.getByRole("button", { name: "Mark Applied" }));
+    await waitFor(() =>
+      expect(fetch).toHaveBeenLastCalledWith(
+        "/api/feedback",
+        expect.objectContaining({
+          body: JSON.stringify({
+            job_result_id: 1,
+            feedback_type: "applied",
+            note: null,
+          }),
+        }),
+      ),
+    );
+
+    // Switch to "Not for me" — the API is hit again with the new verdict, and
+    // the previously-active "Mark Applied" button is re-enabled so it can be
+    // chosen again later.
+    fireEvent.click(screen.getByRole("button", { name: "Not for me" }));
+    await waitFor(() =>
+      expect(fetch).toHaveBeenLastCalledWith(
+        "/api/feedback",
+        expect.objectContaining({
+          body: JSON.stringify({
+            job_result_id: 1,
+            feedback_type: "not_relevant",
+            note: null,
+          }),
+        }),
+      ),
+    );
+    expect(
+      screen.getByRole("button", { name: "Mark Applied" }),
+    ).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Not for me" })).toBeDisabled();
+  });
+
   it("asks for confirmation before blocking a company", () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     renderGrid([job()]);
@@ -204,7 +245,7 @@ describe("<ResultsGrid />", () => {
 
   it("backfills a note onto an already-given reaction via 'Save note'", async () => {
     // Server-hydrated: this job already has an "applied" reaction.
-    renderGrid([job({ feedback: ["applied"] })]);
+    renderGrid([job({ feedback: "applied" })]);
     fireEvent.click(screen.getByText("Frontend Engineer"));
     fireEvent.click(screen.getByRole("button", { name: /Add a note/ }));
     fireEvent.change(screen.getByRole("textbox"), {

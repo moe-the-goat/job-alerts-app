@@ -83,7 +83,7 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
   const { registerGridAdapter } = useWorkspace();
 
   const [feedbackByJob, setFeedbackByJob] = React.useState<
-    Record<number, FeedbackType[]>
+    Record<number, FeedbackType | null>
   >(() => Object.fromEntries(jobs.map((j) => [j.id, j.feedback])));
   const [pendingByJob, setPendingByJob] = React.useState<
     Record<number, FeedbackType | null>
@@ -97,31 +97,34 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
 
   const rowRefs = React.useRef(new Map<number, HTMLDivElement>());
 
-  // Server refresh after a successful write may add feedback rows we don't
-  // have locally — merge, never drop an optimistic entry that's in flight.
+  // Server refresh after a successful write reflects the canonical verdict —
+  // adopt it, but keep an optimistic value that's still in flight (pending).
   React.useEffect(() => {
     setFeedbackByJob((prev) => {
-      const next: Record<number, FeedbackType[]> = {};
+      const next: Record<number, FeedbackType | null> = {};
       for (const job of jobs) {
-        const local = prev[job.id] ?? [];
-        next[job.id] = Array.from(new Set([...job.feedback, ...local]));
+        next[job.id] = prev[job.id] ?? job.feedback;
+        // Server is authoritative once nothing is pending for this job.
+        if (pendingByJob[job.id] == null) next[job.id] = job.feedback;
       }
       return next;
     });
+    // pendingByJob intentionally omitted — we only reconcile on a jobs refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobs]);
 
   const sendFeedback = React.useCallback(
     async (job: JobWithFeedback, type: FeedbackType, note?: string | null) => {
-      const submitted = feedbackByJob[job.id] ?? [];
+      const current = feedbackByJob[job.id] ?? null;
       const trimmedNote =
         typeof note === "string" && note.trim().length > 0 ? note.trim() : null;
-      // Append-only on the reaction itself. A repeat tap is normally a no-op,
-      // but if it now carries a note we still send it so the API can backfill
-      // the note onto the existing feedback row (matches the email page).
-      if (submitted.includes(type) && !trimmedNote) return true;
+      // One verdict per job. Re-tapping the SAME reaction is a no-op unless it
+      // now carries a note (then we re-send so the API backfills it). Tapping a
+      // DIFFERENT reaction replaces the verdict.
+      if (current === type && !trimmedNote) return true;
       if (
         type === "block_company" &&
-        !submitted.includes(type) &&
+        current !== type &&
         !window.confirm(
           `Block ${job.company ?? "this company"}? Their jobs stop appearing in future runs.`,
         )
@@ -130,8 +133,8 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
       }
       setErrorByJob((e) => ({ ...e, [job.id]: null }));
       setPendingByJob((p) => ({ ...p, [job.id]: type }));
-      // Optimistic: paint the chip immediately, roll back on error.
-      setFeedbackByJob((f) => ({ ...f, [job.id]: [...submitted, type] }));
+      // Optimistic: paint the new verdict immediately, roll back on error.
+      setFeedbackByJob((f) => ({ ...f, [job.id]: type }));
       try {
         const res = await fetch("/api/feedback", {
           method: "POST",
@@ -149,7 +152,7 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
         router.refresh();
         return true;
       } catch (err) {
-        setFeedbackByJob((f) => ({ ...f, [job.id]: submitted }));
+        setFeedbackByJob((f) => ({ ...f, [job.id]: current }));
         setErrorByJob((e) => ({
           ...e,
           [job.id]: err instanceof Error ? err.message : "Something went wrong.",
@@ -299,7 +302,7 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
                 job={job}
                 focused={focusedId === job.id}
                 expanded={expandedId === job.id}
-                submitted={feedbackByJob[job.id] ?? []}
+                verdict={feedbackByJob[job.id] ?? null}
                 pending={pendingByJob[job.id] ?? null}
                 error={errorByJob[job.id] ?? null}
                 rowRef={(el) => {
@@ -325,7 +328,7 @@ function Row({
   job,
   focused,
   expanded,
-  submitted,
+  verdict,
   pending,
   error,
   rowRef,
@@ -336,7 +339,7 @@ function Row({
   job: JobWithFeedback;
   focused: boolean;
   expanded: boolean;
-  submitted: FeedbackType[];
+  verdict: FeedbackType | null;
   pending: FeedbackType | null;
   error: string | null;
   rowRef: (el: HTMLDivElement | null) => void;
@@ -355,7 +358,8 @@ function Row({
       icon: a.icon,
       kbd: a.kbd,
       destructive: a.destructive,
-      disabled: submitted.includes(a.type),
+      // Only the current verdict is disabled — tapping another replaces it.
+      disabled: verdict === a.type,
       onSelect: () => onAction(a.type),
     })),
     ...(job.job_url
@@ -402,10 +406,10 @@ function Row({
             {severities.map((kind) => (
               <SeverityBadge key={kind} kind={kind} />
             ))}
-            {submitted.length > 0 && (
+            {verdict && (
               <span className="inline-flex items-center gap-0.5 text-[10px] text-[var(--success-400)]">
                 <Check className="h-3 w-3" />
-                {submitted.includes("applied") ? "applied" : "noted"}
+                {verdict === "applied" ? "applied" : "noted"}
               </span>
             )}
             {pending && (
@@ -437,7 +441,7 @@ function Row({
         )}
 
         {expanded && (
-          <RowDetail job={job} submitted={submitted} pending={pending} onAction={onAction} />
+          <RowDetail job={job} verdict={verdict} pending={pending} onAction={onAction} />
         )}
       </div>
     </ContextMenu>
@@ -471,12 +475,12 @@ function RowMenuButton({ items }: { items: ContextMenuItem[] }) {
 
 function RowDetail({
   job,
-  submitted,
+  verdict,
   pending,
   onAction,
 }: {
   job: JobWithFeedback;
-  submitted: FeedbackType[];
+  verdict: FeedbackType | null;
   pending: FeedbackType | null;
   onAction: (type: FeedbackType, note?: string | null) => void | Promise<boolean>;
 }) {
@@ -484,13 +488,11 @@ function RowDetail({
   const [note, setNote] = React.useState("");
   const [noteSaved, setNoteSaved] = React.useState(false);
 
-  const hasReacted = submitted.length > 0;
-  // The reaction "Save note" should re-send to backfill the note onto an
-  // existing row. Prefer the most recently submitted non-destructive reaction
-  // (re-sending block_company would re-trigger its confirm dialog).
-  const lastReaction = [...submitted]
-    .reverse()
-    .find((t) => t !== "block_company") ?? null;
+  const hasReacted = verdict !== null;
+  // "Save note" re-sends the current verdict so the API backfills the note
+  // onto its row. block_company is excluded — re-sending it would re-trigger
+  // the confirm dialog.
+  const lastReaction = verdict !== "block_company" ? verdict : null;
 
   function reactWithNote(type: FeedbackType) {
     const trimmed = note.trim();
@@ -562,7 +564,7 @@ function RowDetail({
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           {ACTIONS.map(({ type, label, icon: Icon, destructive }) => {
-            const isActive = submitted.includes(type);
+            const isActive = verdict === type;
             const isLoading = pending === type;
             return (
               <button

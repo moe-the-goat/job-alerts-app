@@ -111,7 +111,9 @@ export function FeedbackActions({
         setError(messageFor(res.status));
         return false;
       }
-      setGiven((prev) => new Set(prev).add(type));
+      // One verdict per job — the new reaction REPLACES any prior one rather
+      // than stacking, matching submit_email_feedback's server behavior.
+      setGiven(new Set([type]));
       setLastReaction(type);
       return true;
     } catch {

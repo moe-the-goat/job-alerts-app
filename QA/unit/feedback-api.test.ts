@@ -3,7 +3,8 @@
  *   - 401 when no session
  *   - 400 on payload that fails enum / int validation
  *   - 404 when the job_result_id doesn't belong to the user
- *   - INSERT into feedback (append-only) with the right shape
+ *   - UPSERT into feedback (one verdict per (user, job)) with the right shape
+ *   - a note backfills but a bare re-tap keeps the existing note
  *   - SECONDARY: a "bookmarked" reaction also upserts into bookmarks
  *   - DEFENSE IN DEPTH: every lookup is scoped by user_id even though RLS would already enforce it
  */
@@ -27,9 +28,12 @@ interface JobLookupCalls {
   eqUser: ReturnType<typeof vi.fn>;
   maybeSingle: ReturnType<typeof vi.fn>;
 }
-interface FeedbackInsertCalls {
-  insert: ReturnType<typeof vi.fn>;
-  select: ReturnType<typeof vi.fn>;
+interface FeedbackWriteCalls {
+  // note-lookup chain: .select("note").eq().eq().maybeSingle()
+  existingNote: ReturnType<typeof vi.fn>;
+  // write chain: .upsert(row, opts).select("id").single()
+  upsert: ReturnType<typeof vi.fn>;
+  upsertSelect: ReturnType<typeof vi.fn>;
   single: ReturnType<typeof vi.fn>;
 }
 interface BookmarkUpsertCalls {
@@ -38,11 +42,13 @@ interface BookmarkUpsertCalls {
 
 function buildSupabase({
   job,
+  existingNote = null,
   insertedFeedbackId,
   insertError,
   bookmarkError,
 }: {
   job: object | null;
+  existingNote?: string | null;
   insertedFeedbackId?: number;
   insertError?: { message: string } | null;
   bookmarkError?: { message: string } | null;
@@ -57,16 +63,26 @@ function buildSupabase({
   jobLookup.eqId.mockReturnValue({ eq: jobLookup.eqUser });
   jobLookup.select.mockReturnValue({ eq: jobLookup.eqId });
 
-  const feedbackInsert: FeedbackInsertCalls = {
+  const feedback: FeedbackWriteCalls = {
+    existingNote: vi.fn().mockResolvedValue({
+      data: existingNote === null ? null : { note: existingNote },
+      error: null,
+    }),
     single: vi.fn().mockResolvedValue({
       data: insertedFeedbackId ? { id: insertedFeedbackId } : null,
       error: insertError ?? null,
     }),
-    select: vi.fn(),
-    insert: vi.fn(),
+    upsertSelect: vi.fn(),
+    upsert: vi.fn(),
   };
-  feedbackInsert.select.mockReturnValue({ single: feedbackInsert.single });
-  feedbackInsert.insert.mockReturnValue({ select: feedbackInsert.select });
+  feedback.upsertSelect.mockReturnValue({ single: feedback.single });
+  feedback.upsert.mockReturnValue({ select: feedback.upsertSelect });
+  // The route's note-merge read: .select("note").eq().eq().maybeSingle().
+  const noteSelect = vi.fn().mockReturnValue({
+    eq: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({ maybeSingle: feedback.existingNote }),
+    }),
+  });
 
   const bookmarkUpsert: BookmarkUpsertCalls = {
     upsert: vi.fn().mockResolvedValue({ error: bookmarkError ?? null }),
@@ -74,12 +90,13 @@ function buildSupabase({
 
   fromMock.mockImplementation((table: string) => {
     if (table === "job_results") return { select: jobLookup.select };
-    if (table === "feedback") return { insert: feedbackInsert.insert };
+    if (table === "feedback")
+      return { select: noteSelect, upsert: feedback.upsert };
     if (table === "bookmarks") return bookmarkUpsert;
     throw new Error(`Unexpected table: ${table}`);
   });
 
-  return { jobLookup, feedbackInsert, bookmarkUpsert };
+  return { jobLookup, feedback, bookmarkUpsert };
 }
 
 function postJson(body: unknown) {
@@ -137,9 +154,9 @@ describe("POST /api/feedback", () => {
     expect(res.status).toBe(404);
   });
 
-  it("200 + INSERT feedback when valid, scoped by user_id", async () => {
+  it("200 + UPSERT feedback when valid, scoped by user_id", async () => {
     getUserMock.mockResolvedValue({ data: { user: { id: "u1" } } });
-    const { jobLookup, feedbackInsert } = buildSupabase({
+    const { jobLookup, feedback } = buildSupabase({
       job: {
         id: 42,
         user_id: "u1",
@@ -159,8 +176,8 @@ describe("POST /api/feedback", () => {
     expect(jobLookup.eqId).toHaveBeenCalledWith("id", 42);
     expect(jobLookup.eqUser).toHaveBeenCalledWith("user_id", "u1");
 
-    const insertedRow = feedbackInsert.insert.mock.calls[0][0];
-    expect(insertedRow).toMatchObject({
+    const [upsertedRow, opts] = feedback.upsert.mock.calls[0];
+    expect(upsertedRow).toMatchObject({
       user_id: "u1",
       job_result_id: 42,
       job_url: "https://x/y",
@@ -168,6 +185,30 @@ describe("POST /api/feedback", () => {
       company: "Acme",
       feedback_type: "applied",
       note: "hello",
+    });
+    // Conflict target is the one-verdict-per-job unique index.
+    expect(opts).toEqual({ onConflict: "user_id,job_result_id" });
+  });
+
+  it("replaces the verdict on a re-tap and keeps the existing note when none is sent", async () => {
+    getUserMock.mockResolvedValue({ data: { user: { id: "u1" } } });
+    const { feedback } = buildSupabase({
+      job: {
+        id: 42,
+        user_id: "u1",
+        job_url: "https://x/y",
+        title: "Senior Engineer",
+        company: "Acme",
+      },
+      existingNote: "loved it",
+      insertedFeedbackId: 7,
+    });
+    // New reaction, no note in the payload — the prior note must survive.
+    await POST(postJson({ job_result_id: 42, feedback_type: "not_relevant" }));
+    const [upsertedRow] = feedback.upsert.mock.calls[0];
+    expect(upsertedRow).toMatchObject({
+      feedback_type: "not_relevant",
+      note: "loved it",
     });
   });
 

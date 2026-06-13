@@ -79,16 +79,15 @@ export async function loadJobsForRun(
   ]);
 
   const jobs = jobsRes.data ?? [];
-  const feedbackByJob = new Map<number, Set<FeedbackType>>();
+  // One verdict per job since migration 0016 — collapse to a single value.
+  const feedbackByJob = new Map<number, FeedbackType>();
   for (const row of feedbackRes.data ?? []) {
     if (row.job_result_id == null) continue;
-    const set = feedbackByJob.get(row.job_result_id) ?? new Set<FeedbackType>();
-    set.add(row.feedback_type);
-    feedbackByJob.set(row.job_result_id, set);
+    feedbackByJob.set(row.job_result_id, row.feedback_type);
   }
 
   return jobs.map((job) => ({
     ...job,
-    feedback: Array.from(feedbackByJob.get(job.id) ?? []),
+    feedback: feedbackByJob.get(job.id) ?? null,
   }));
 }

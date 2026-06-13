@@ -51,5 +51,10 @@ export interface JobResult {
 }
 
 export interface JobWithFeedback extends JobResult {
-  feedback: FeedbackType[];
+  /**
+   * The single verdict this user gave on the job, or null if untouched.
+   * One verdict per (user, job) since migration 0016 — the latest reaction
+   * replaces any earlier one rather than stacking.
+   */
+  feedback: FeedbackType | null;
 }
