@@ -57,7 +57,7 @@ export function ClaimForm({ initialEmail = "" }: { initialEmail?: string }) {
         return;
       }
       setStep("code");
-      setInfo(`We sent a 6-digit code to ${addr}. It expires shortly.`);
+      setInfo(`We sent a verification code to ${addr}. It expires shortly.`);
     } catch {
       setError("Something went wrong sending the code. Try again.");
     } finally {
@@ -68,8 +68,9 @@ export function ClaimForm({ initialEmail = "" }: { initialEmail?: string }) {
   async function verifyCode(e: React.FormEvent) {
     e.preventDefault();
     const token = code.trim();
+    // Supabase's OTP length is configurable (6–10 digits); don't assume 6.
     if (token.length < 6) {
-      setError("Enter the 6-digit code from your email.");
+      setError("Enter the code from your email.");
       return;
     }
     setPending(true);
@@ -131,10 +132,12 @@ export function ClaimForm({ initialEmail = "" }: { initialEmail?: string }) {
         name="code"
         inputMode="numeric"
         autoComplete="one-time-code"
-        label="6-digit code"
-        placeholder="123456"
+        label="Verification code"
+        placeholder="Code from your email"
         value={code}
-        onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+        // Strip non-digits; cap at 10 (Supabase's max OTP length) so we never
+        // truncate a valid code — the earlier 6-cap chopped 8-digit codes.
+        onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
         error={error ?? undefined}
         hint={info ?? undefined}
         required
