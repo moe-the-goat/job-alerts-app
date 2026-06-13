@@ -7,13 +7,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Capture admin-client interactions.
-const inviteMock =
-  vi.fn<(email: string, opts?: { data?: unknown; redirectTo?: string }) => Promise<unknown>>();
+const createUserMock =
+  vi.fn<
+    (args: {
+      email: string;
+      email_confirm?: boolean;
+      user_metadata?: unknown;
+    }) => Promise<unknown>
+  >();
 const updates: { table: string; payload: Record<string, unknown> }[] = [];
 
 function makeAdminClient() {
   return {
-    auth: { admin: { inviteUserByEmail: inviteMock } },
+    auth: { admin: { createUser: createUserMock } },
     from(table: string) {
       return {
         update(payload: Record<string, unknown>) {
@@ -55,7 +61,7 @@ function pendingRow(over: Partial<AccessRequestRow> = {}): AccessRequestRow {
 }
 
 beforeEach(() => {
-  inviteMock.mockReset();
+  createUserMock.mockReset();
   sendEmailMock.mockClear();
   updates.length = 0;
   process.env.NEXT_PUBLIC_SITE_URL = "https://app.example.com";
@@ -73,18 +79,21 @@ describe("token helpers", () => {
 });
 
 describe("approveRequest", () => {
-  it("invites the user, whitelists them, marks approved, and emails them", async () => {
-    inviteMock.mockResolvedValue({ data: { user: { id: "new-uid" } }, error: null });
+  it("creates a confirmed account, whitelists them, marks approved, and emails them a claim link", async () => {
+    createUserMock.mockResolvedValue({ data: { user: { id: "new-uid" } }, error: null });
 
     const res = await approveRequest(pendingRow());
     expect(res.ok).toBe(true);
 
-    // Invited with the right email + name metadata + redirect.
-    expect(inviteMock).toHaveBeenCalledTimes(1);
-    const [email, opts] = inviteMock.mock.calls[0];
-    expect(email).toBe("ada@example.com");
-    expect(opts?.data).toMatchObject({ first_name: "Ada", last_name: "Lovelace" });
-    expect(opts?.redirectTo).toContain("/auth/callback");
+    // Created a confirmed account (no Supabase invite email) with name metadata.
+    expect(createUserMock).toHaveBeenCalledTimes(1);
+    const [args] = createUserMock.mock.calls[0];
+    expect(args.email).toBe("ada@example.com");
+    expect(args.email_confirm).toBe(true);
+    expect(args.user_metadata).toMatchObject({
+      first_name: "Ada",
+      last_name: "Lovelace",
+    });
 
     // Whitelisted the new profile + marked the request approved.
     expect(updates).toEqual(
@@ -97,16 +106,18 @@ describe("approveRequest", () => {
       ]),
     );
 
-    // Emailed the applicant.
+    // Emailed the applicant a link to the token-less /claim page.
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
-    expect(sendEmailMock.mock.calls[0][0]).toMatchObject({ to: "ada@example.com" });
+    const mail = sendEmailMock.mock.calls[0][0] as { to: string; text: string };
+    expect(mail.to).toBe("ada@example.com");
+    expect(mail.text).toContain("/claim?email=ada%40example.com");
   });
 
-  it("returns an error and does not whitelist when the invite fails", async () => {
-    inviteMock.mockResolvedValue({ data: null, error: { message: "already registered" } });
+  it("returns an error and does not whitelist when account creation fails", async () => {
+    createUserMock.mockResolvedValue({ data: null, error: { message: "already registered" } });
     const res = await approveRequest(pendingRow());
     expect(res.ok).toBe(false);
-    expect(res.error).toMatch(/invite failed/i);
+    expect(res.error).toMatch(/account creation failed/i);
     expect(updates).toHaveLength(0);
     expect(sendEmailMock).not.toHaveBeenCalled();
   });
@@ -114,7 +125,7 @@ describe("approveRequest", () => {
   it("is a no-op on an already-decided request", async () => {
     const res = await approveRequest(pendingRow({ status: "approved" }));
     expect(res).toMatchObject({ ok: true, alreadyDecided: true });
-    expect(inviteMock).not.toHaveBeenCalled();
+    expect(createUserMock).not.toHaveBeenCalled();
   });
 });
 
@@ -131,7 +142,7 @@ describe("rejectRequest", () => {
       ]),
     );
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
-    expect(inviteMock).not.toHaveBeenCalled();
+    expect(createUserMock).not.toHaveBeenCalled();
   });
 
   it("is a no-op on an already-decided request", async () => {

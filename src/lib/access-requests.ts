@@ -58,17 +58,19 @@ export async function approveRequest(
   const admin = createAdminClient();
   const origin = siteOrigin();
 
-  // Invite: Supabase emails a link that lets them set a password and lands on
-  // /auth/callback, finishing verification + sign-in in one step.
-  const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(
-    reqRow.email,
-    {
-      data: { first_name: reqRow.first_name, last_name: reqRow.last_name },
-      redirectTo: origin ? `${origin}/auth/callback?next=/dashboard` : undefined,
-    },
-  );
+  // Create the account directly (confirmed, no password yet) instead of
+  // inviteUserByEmail. The invite path emails a single-use link that corporate
+  // mail scanners pre-consume (→ otp_expired on the real click); we replace it
+  // with our own token-less /claim page where the user requests a one-time
+  // code themselves. email_confirm:true means no Supabase email is sent here
+  // and the account is immediately eligible for OTP login.
+  const { data: invited, error: inviteErr } = await admin.auth.admin.createUser({
+    email: reqRow.email,
+    email_confirm: true,
+    user_metadata: { first_name: reqRow.first_name, last_name: reqRow.last_name },
+  });
   if (inviteErr) {
-    return { ok: false, error: `Invite failed: ${inviteErr.message}` };
+    return { ok: false, error: `Account creation failed: ${inviteErr.message}` };
   }
 
   const newUserId = invited?.user?.id ?? null;
@@ -99,12 +101,18 @@ export async function approveRequest(
     })
     .eq("id", reqRow.id);
 
-  // Courtesy heads-up (the actual actionable link is Supabase's invite email).
+  // Send them to the token-less /claim page on our own domain. They request a
+  // one-time code there themselves — a flow email scanners can't pre-consume
+  // (unlike Supabase's invite link, which corporate mail servers auto-fetch
+  // and burn before the human clicks → otp_expired). See app/claim.
+  const claimUrl = origin
+    ? `${origin}/claim?email=${encodeURIComponent(reqRow.email)}`
+    : "";
   await sendEmail({
     to: reqRow.email,
     subject: "You're in — set up your Job Alerts account",
-    html: approvedEmailHtml(reqRow.first_name),
-    text: approvedEmailText(reqRow.first_name),
+    html: approvedEmailHtml(reqRow.first_name, claimUrl),
+    text: approvedEmailText(reqRow.first_name, claimUrl),
   });
 
   return { ok: true };
@@ -164,19 +172,27 @@ export function adminNotificationHtml(
     </div>`;
 }
 
-function approvedEmailHtml(firstName: string): string {
+function approvedEmailHtml(firstName: string, claimUrl: string): string {
+  const button = claimUrl
+    ? `<p style="margin:16px 0;">
+         <a href="${claimUrl}" style="background:#3b82e0;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;">Set up your account</a>
+       </p>
+       <p style="color:#777;font-size:13px;">On that page, enter your email and we'll send you a one-time code to finish setting up and choose a password.</p>`
+    : `<p>Head to the app and use “Set up your account” to finish.</p>`;
   return `
     <div style="font-family:system-ui,sans-serif;max-width:520px;">
       <h2>You're in, ${escapeHtml(firstName)} 🎉</h2>
-      <p>Your access to Job Alerts has been approved. We've just emailed you a
-      separate <b>invite link</b> — click it to set your password and verify your
-      email, then you'll be taken straight to your dashboard.</p>
-      <p style="color:#777;font-size:13px;">If you don't see the invite, check spam.</p>
+      <p>Your access to Job Alerts has been approved. Click below to set up your
+      account — we'll email you a quick one-time code to verify it's you, then
+      you'll choose a password and land in your dashboard.</p>
+      ${button}
+      <p style="color:#777;font-size:13px;">If the button doesn't work, the link is also safe to copy into your browser.</p>
     </div>`;
 }
 
-function approvedEmailText(firstName: string): string {
-  return `You're in, ${firstName}! Your Job Alerts access is approved. Check your inbox for a separate invite link to set your password and verify your email, then you'll reach your dashboard.`;
+function approvedEmailText(firstName: string, claimUrl: string): string {
+  const where = claimUrl ? `\n\nSet up your account: ${claimUrl}` : "";
+  return `You're in, ${firstName}! Your Job Alerts access is approved. Set up your account, verify with a one-time code we'll email you, choose a password, and you'll reach your dashboard.${where}`;
 }
 
 function rejectedEmailHtml(firstName: string): string {
