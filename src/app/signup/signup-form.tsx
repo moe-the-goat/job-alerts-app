@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, MailWarning } from "lucide-react";
 import { signupAction, type AuthState } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,14 @@ export function SignupForm() {
         <p className="mt-1.5 text-sm leading-relaxed text-[var(--text-secondary)]">
           {state.message}
         </p>
+        <div className="mt-5 flex w-full items-start gap-2.5 rounded-lg border border-[var(--accent-500)]/40 bg-[var(--accent-500)]/10 px-3.5 py-3 text-left">
+          <MailWarning className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent-400)]" />
+          <p className="text-sm font-medium leading-relaxed text-[var(--text-primary)]">
+            Check your spam or junk folder. Our approval or rejection email
+            often lands there — if you don&rsquo;t see it in your inbox, look in
+            spam and mark it &ldquo;Not spam&rdquo; so future emails arrive.
+          </p>
+        </div>
       </div>
     );
   }
