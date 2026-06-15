@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -44,6 +45,13 @@ export default async function AdminPage({
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
+      <Link
+        href="/dashboard"
+        className="mb-4 inline-flex items-center gap-1.5 text-[13px] text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-secondary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to dashboard
+      </Link>
       <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
         Admin
       </h1>

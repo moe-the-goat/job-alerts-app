@@ -31,12 +31,31 @@ const WORKFLOW_FILE = "multi_user.yml";
 // the workflow file.
 const WORKFLOW_REF = "main";
 
+// How long a manual dispatch "holds" the lock. Long enough to cover the gap
+// before the worker creates its runs row (then the runs-status check takes
+// over), short enough that a genuinely failed dispatch doesn't lock the user
+// out for long. The claim is rolled back immediately on a failed dispatch, so
+// this mainly bounds the worst case.
+const MANUAL_DISPATCH_COOLDOWN_MS = 3 * 60 * 1000; // 3 minutes
+
 async function authedClient() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return { supabase, user };
+}
+
+/** Release the manual-dispatch lock (clear last_manual_dispatch_at) so a failed
+ *  dispatch doesn't lock the user out for the cooldown. Best-effort. */
+async function releaseDispatchClaim(
+  supabase: Awaited<ReturnType<typeof authedClient>>["supabase"],
+  userId: string,
+): Promise<void> {
+  await supabase
+    .from("preferences")
+    .update({ last_manual_dispatch_at: null })
+    .eq("user_id", userId);
 }
 
 /**
@@ -87,6 +106,29 @@ export async function triggerManualRunAction(): Promise<RunActionState> {
     return { ok: false, error: "A run is already in progress. Give it a few minutes." };
   }
 
+  // 3. Atomic dispatch lock (fixes the double-press bug). The runs-status check
+  // above can't catch a fast double-press: the worker doesn't create the runs
+  // row until it boots (~30s), so a second press in that gap also passes. So we
+  // CLAIM the user here with a conditional UPDATE on last_manual_dispatch_at —
+  // it succeeds (returns a row) only when the last dispatch is null or older
+  // than the cooldown. Two racing requests serialize on the single-row lock;
+  // exactly one gets the row, the other updates zero rows and is rejected.
+  const cooldownAgo = new Date(Date.now() - MANUAL_DISPATCH_COOLDOWN_MS).toISOString();
+  const { data: claimed, error: claimErr } = await supabase
+    .from("preferences")
+    .update({ last_manual_dispatch_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+    .or(`last_manual_dispatch_at.is.null,last_manual_dispatch_at.lt.${cooldownAgo}`)
+    .select("user_id")
+    .maybeSingle<{ user_id: string }>();
+  if (claimErr) {
+    return { ok: false, error: "Couldn't start the run. Try again." };
+  }
+  if (!claimed) {
+    // Another dispatch just claimed the slot (double-press / second tab).
+    return { ok: false, error: "A run was just started. Give it a few minutes." };
+  }
+
   // Dispatch the workflow for exactly this user, skipping the due-check and
   // marking it manual so the worker stamps run_trigger + cancels today's
   // scheduled tick.
@@ -113,11 +155,15 @@ export async function triggerManualRunAction(): Promise<RunActionState> {
       cache: "no-store",
     });
   } catch {
+    // Dispatch never left the building — release the claim so the user can retry
+    // immediately instead of waiting out the cooldown.
+    await releaseDispatchClaim(supabase, user.id);
     return { ok: false, error: "Couldn't reach the run service. Try again." };
   }
 
   // GitHub returns 204 No Content on a successful dispatch.
   if (res.status !== 204) {
+    await releaseDispatchClaim(supabase, user.id);
     return {
       ok: false,
       error: "The run couldn't be started right now. Try again in a moment.",

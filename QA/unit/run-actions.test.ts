@@ -40,8 +40,13 @@ afterEach(() => {
   delete process.env.GH_DISPATCH_TOKEN;
 });
 
-// Build a `from("runs")` chain that resolves maybeSingle() to the given status.
-function wireLastRunStatus(status: string | null) {
+// Wire both tables the action touches:
+//  - runs: the latest-run-status read (maybeSingle → {status})
+//  - preferences: the atomic dispatch-claim conditional update
+//    (.update().eq().or().select().maybeSingle()) + the release update().eq()
+// `claimWon` controls whether the claim returns a row (true) or zero rows
+// (false = another dispatch already claimed it).
+function wireSupabase(status: string | null, { claimWon = true } = {}) {
   fromMock.mockImplementation((table: string) => {
     if (table === "runs") {
       return {
@@ -50,17 +55,39 @@ function wireLastRunStatus(status: string | null) {
             order: () => ({
               limit: () => ({
                 maybeSingle: async () =>
-                  status === null
-                    ? { data: null }
-                    : { data: { status } },
+                  status === null ? { data: null } : { data: { status } },
               }),
             }),
           }),
         }),
       };
     }
+    if (table === "preferences") {
+      return {
+        update: () => ({
+          // claim path: .eq().or().select().maybeSingle()
+          eq: () => ({
+            or: () => ({
+              select: () => ({
+                maybeSingle: async () => ({
+                  data: claimWon ? { user_id: USER } : null,
+                  error: null,
+                }),
+              }),
+            }),
+            // release path: .update().eq() resolves directly
+            then: (res: (v: unknown) => unknown) => res({ error: null }),
+          }),
+        }),
+      };
+    }
     throw new Error(`unexpected table ${table}`);
   });
+}
+
+// Back-compat alias for the runs-only tests.
+function wireLastRunStatus(status: string | null) {
+  wireSupabase(status);
 }
 
 describe("triggerManualRunAction", () => {
@@ -96,9 +123,20 @@ describe("triggerManualRunAction", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a double-press: when the atomic claim is lost, no dispatch fires", async () => {
+    rpcMock.mockResolvedValue({ data: 0, error: null });
+    // No run in flight yet (the race window), but the claim update returns zero
+    // rows because a near-simultaneous press already claimed the slot.
+    wireSupabase("success", { claimWon: false });
+    const res = await triggerManualRunAction();
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/just started|few minutes/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("dispatches the workflow with the manual + per-user inputs on success", async () => {
     rpcMock.mockResolvedValue({ data: 1, error: null });
-    wireLastRunStatus("success");
+    wireSupabase("success", { claimWon: true });
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
 
     const res = await triggerManualRunAction();
@@ -124,7 +162,7 @@ describe("triggerManualRunAction", () => {
 
   it("surfaces a friendly error when GitHub returns non-204", async () => {
     rpcMock.mockResolvedValue({ data: 0, error: null });
-    wireLastRunStatus(null);
+    wireSupabase(null, { claimWon: true });
     fetchMock.mockResolvedValue(new Response("nope", { status: 422 }));
     const res = await triggerManualRunAction();
     expect(res.ok).toBe(false);
