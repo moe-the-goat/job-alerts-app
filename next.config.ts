@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  // Keep `pdf-parse` (and its pdf.js internals) as a real server-side Node
+  // module instead of letting Next/Turbopack trace-and-bundle it. Bundling it
+  // mangled its internals and made PDF parsing throw on many real CVs, so
+  // uploads only worked as DOCX. Externalizing fixes text-based PDF uploads.
+  serverExternalPackages: ["pdf-parse"],
 };
 
 export default nextConfig;

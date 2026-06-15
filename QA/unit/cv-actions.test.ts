@@ -31,15 +31,27 @@ vi.mock("@/lib/cv-parser", async () => {
   );
   return {
     ...actual,
+    // A realistic CV so it clears the quality gate (skills + projects + experience).
     parseCv: vi.fn(async (_buffer: Buffer, kind: "pdf" | "docx") => ({
-      text: "a".repeat(500),
+      text: USABLE_CV,
       kind,
-      chars: 500,
+      chars: USABLE_CV.length,
     })),
   };
 });
 
 import { saveCvTextAction, uploadCvAction } from "@/app/actions/cv";
+
+// A realistic CV that clears the quality gate — used wherever a test needs the
+// happy path (the gate blocks content with no skills/experience/projects signal).
+const USABLE_CV = [
+  "Sara Q — sara@example.com — github.com/saraq",
+  "Education: BSc Computer Science, Birzeit University, expected 2027.",
+  "Skills: Python, JavaScript, React, SQL, Docker.",
+  "Experience: Software Engineering Intern at Acme, summer 2025.",
+  "Projects: built a task tracker with React and a FastAPI backend;",
+  "developed an image classifier in PyTorch for a course project.",
+].join("\n");
 
 function wireSupabase({
   user = { id: "user-123" },
@@ -120,7 +132,7 @@ describe("uploadCvAction", () => {
 
     expect(res.ok).toBe(true);
     expect(res.preview).toBeTruthy();
-    expect(res.chars).toBe(500);
+    expect(res.chars).toBe(USABLE_CV.length);
     expect(storageFromMock).toHaveBeenCalledWith("cvs");
     expect(storageUploadMock).toHaveBeenCalledWith(
       "user-123/cv.pdf",
@@ -130,7 +142,7 @@ describe("uploadCvAction", () => {
     expect(storageRemoveMock).toHaveBeenCalledWith(["user-123/cv.docx"]);
     expect(fromMock).toHaveBeenCalledWith("profiles");
     const payload = updateMock.mock.calls[0][0];
-    expect(payload.cv_text).toMatch(/^a+$/);
+    expect(payload.cv_text).toContain("Skills:");
     expect(payload.cv_file_path).toBe("user-123/cv.pdf");
     expect(payload.cv_embedding).toBeNull();
     expect(typeof payload.cv_uploaded_at).toBe("string");
@@ -159,7 +171,7 @@ describe("saveCvTextAction", () => {
   it("rejects when the session is gone", async () => {
     wireSupabase({ user: null as unknown as { id: string } });
     const fd = new FormData();
-    fd.append("cv_text", "a".repeat(500));
+    fd.append("cv_text", USABLE_CV);
     const res = await saveCvTextAction(undefined, fd);
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/session/i);
@@ -168,7 +180,9 @@ describe("saveCvTextAction", () => {
   it("writes normalized text to profiles", async () => {
     wireSupabase();
     const fd = new FormData();
-    fd.append("cv_text", "a".repeat(500) + "    \n\n\n\n\n" + "b".repeat(50));
+    // Usable CV padded to >500 chars with collapsible blank lines, to exercise
+    // both the quality gate (passes) and the blank-line normalization.
+    fd.append("cv_text", USABLE_CV + "    \n\n\n\n\n" + "more detail ".repeat(60));
     const res = await saveCvTextAction(undefined, fd);
     expect(res.ok).toBe(true);
     expect(res.chars).toBeGreaterThan(500);

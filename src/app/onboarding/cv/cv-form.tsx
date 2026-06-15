@@ -64,6 +64,7 @@ export function CvForm({
         {uploadState?.ok && uploadState.message && (
           <FormFeedback variant="success" message={uploadState.message} />
         )}
+        {uploadState?.ok && <CvGaps gaps={uploadState.gaps} />}
 
         {(initialPath || uploadState?.ok) && (
           <p className="mt-4 text-xs text-[var(--text-tertiary)]">
@@ -131,6 +132,7 @@ function CvEditor({ initial }: { initial: string }) {
       {saveState?.ok && saveState.message && (
         <FormFeedback variant="success" message={saveState.message} />
       )}
+      {saveState?.ok && <CvGaps gaps={saveState.gaps} />}
 
       <SaveTextButton />
     </form>
@@ -297,6 +299,27 @@ function FormFeedback({
       <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
       <span>{message}</span>
     </p>
+  );
+}
+
+// Non-blocking quality advice shown after a CV is accepted — the CV is saved
+// either way; these are suggestions to make scoring sharper.
+function CvGaps({ gaps }: { gaps?: string[] }) {
+  if (!gaps || gaps.length === 0) return null;
+  return (
+    <div className="mt-3 rounded-lg border border-[var(--warning-400)]/30 bg-[var(--warning-400)]/5 px-3 py-2.5">
+      <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-[var(--warning-400)]">
+        Saved — a few things would sharpen your matches
+      </p>
+      <ul className="space-y-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">
+        {gaps.map((g, i) => (
+          <li key={i} className="flex gap-1.5">
+            <span className="text-[var(--text-tertiary)]">•</span>
+            <span>{g}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

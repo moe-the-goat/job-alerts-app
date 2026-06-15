@@ -10,6 +10,7 @@ import {
   normalizeCvText,
   parseCv,
 } from "@/lib/cv-parser";
+import { assessCvQuality } from "@/lib/cv-quality";
 
 const CV_BUCKET = "cvs";
 
@@ -19,6 +20,8 @@ export type CvState = {
   message?: string;
   preview?: string;
   chars?: number;
+  /** Non-blocking quality advice — shown when the CV passed but could be stronger. */
+  gaps?: string[];
 };
 
 function bucketPath(userId: string, kind: "pdf" | "docx"): string {
@@ -74,6 +77,14 @@ export async function uploadCvAction(
     };
   }
 
+  // Quality gate: block a CV with nothing to score against (returns a specific
+  // "add X" message); otherwise collect non-blocking gaps to advise on. Runs
+  // before we persist, so a blocked CV is never saved.
+  const quality = assessCvQuality(parsed.text);
+  if (!quality.usable) {
+    return { ok: false, error: quality.blockingReason };
+  }
+
   const path = bucketPath(user.id, kind);
   const otherKind = kind === "pdf" ? "docx" : "pdf";
   const otherPath = bucketPath(user.id, otherKind);
@@ -117,6 +128,7 @@ export async function uploadCvAction(
     message: `Parsed ${parsed.chars.toLocaleString()} characters from your ${kind.toUpperCase()}.`,
     preview: parsed.text,
     chars: parsed.chars,
+    gaps: quality.gaps,
   };
 }
 
@@ -138,6 +150,12 @@ export async function saveCvTextAction(
       ok: false,
       error: `Your CV is too long. Max ${CV_MAX_CHARS.toLocaleString()} characters.`,
     };
+  }
+
+  // Same quality gate as the file path — block unusable pasted text, advise on gaps.
+  const quality = assessCvQuality(text);
+  if (!quality.usable) {
+    return { ok: false, error: quality.blockingReason };
   }
 
   const supabase = await createClient();
@@ -168,5 +186,6 @@ export async function saveCvTextAction(
     message: `Saved ${text.length.toLocaleString()} characters.`,
     preview: text,
     chars: text.length,
+    gaps: quality.gaps,
   };
 }
