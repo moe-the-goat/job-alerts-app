@@ -1,16 +1,18 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DecisionButtons } from "./decision-buttons";
+import { loadAdminAnalytics } from "./_lib/analytics";
+import { AnalyticsView } from "./_components/analytics-view";
 
 export const metadata: Metadata = {
-  title: "Access requests · Admin",
+  title: "Admin",
   robots: { index: false, follow: false },
 };
 
-// Always fresh — pending requests change out of band (signups, email-link
-// decisions).
+// Always fresh — pending requests + analytics change out of band.
 export const dynamic = "force-dynamic";
 
 interface RequestRow {
@@ -23,7 +25,11 @@ interface RequestRow {
   created_at: string;
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   // Gate: only the configured admin user. Anyone else is bounced to /dashboard
   // (or /login if not signed in) — the page never reveals it exists.
   const adminUserId = process.env.ADMIN_USER_ID;
@@ -34,6 +40,46 @@ export default async function AdminPage() {
   if (!user) redirect("/login");
   if (!adminUserId || user.id !== adminUserId) redirect("/dashboard");
 
+  const tab = (await searchParams).tab === "analytics" ? "analytics" : "requests";
+
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-10">
+      <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
+        Admin
+      </h1>
+
+      <nav className="mt-4 flex gap-1 border-b border-[var(--border-muted)]">
+        <TabLink href="/admin" active={tab === "requests"} label="Access requests" />
+        <TabLink href="/admin?tab=analytics" active={tab === "analytics"} label="Analytics" />
+      </nav>
+
+      <div className="mt-6">
+        {tab === "analytics" ? (
+          <AnalyticsView data={await loadAdminAnalytics()} />
+        ) : (
+          <RequestsTab />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TabLink({ href, active, label }: { href: string; active: boolean; label: string }) {
+  return (
+    <Link
+      href={href}
+      className={`-mb-px border-b-2 px-3 py-2 text-[13px] font-medium transition-colors ${
+        active
+          ? "border-[var(--accent-500)] text-[var(--text-primary)]"
+          : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
+async function RequestsTab() {
   const admin = createAdminClient();
   const { data } = await admin
     .from("access_requests")
@@ -46,11 +92,8 @@ export default async function AdminPage() {
   const decided = requests.filter((r) => r.status !== "pending");
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
-        Access requests
-      </h1>
-      <p className="mt-1 text-[13px] text-[var(--text-tertiary)]">
+    <div>
+      <p className="text-[13px] text-[var(--text-tertiary)]">
         Closed beta. Approving sends an invite link; rejecting sends a decline
         email. No passwords are ever shown here.
       </p>

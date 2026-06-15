@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, Mail, Settings } from "lucide-react";
+import { FileText, Mail, Settings, ShieldCheck } from "lucide-react";
 import type { DashboardState } from "../../_lib/dashboard-state";
 import { RunControls } from "./run-controls";
 
@@ -8,6 +8,11 @@ interface SidebarProps {
 }
 
 export function Sidebar({ state }: SidebarProps) {
+  // Admin-only link. ADMIN_USER_ID is server-only and this is a server
+  // component, so the env never reaches the client and the link simply isn't
+  // rendered for anyone but the admin — other users never see it exists.
+  const isAdmin = !!process.env.ADMIN_USER_ID && state.user.id === process.env.ADMIN_USER_ID;
+
   return (
     <aside className="space-y-4">
       <Section title="Quick actions">
@@ -27,6 +32,13 @@ export function Sidebar({ state }: SidebarProps) {
           icon={<FileText className="h-3.5 w-3.5" />}
           label="Update CV"
         />
+        {isAdmin && (
+          <SidebarLink
+            href="/admin?tab=analytics"
+            icon={<ShieldCheck className="h-3.5 w-3.5" />}
+            label="Admin"
+          />
+        )}
       </Section>
 
       <Section title="Account">
