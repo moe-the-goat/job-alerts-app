@@ -281,18 +281,31 @@ function aggregateLlmUsage(
   rows: LlmUsageRow[],
   label: (userId: string) => string,
 ): LlmUsageStats {
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().slice(0, 10);
-  const weekAgo = new Date(today);
-  weekAgo.setUTCDate(weekAgo.getUTCDate() - 6); // inclusive 7-day window
-  const weekStr = weekAgo.toISOString().slice(0, 10);
+  // The worker stamps `day` using the JERUSALEM budget day (resets at local
+  // midnight), NOT UTC — so "today" here must match that, or the Today view is
+  // empty whenever UTC and Jerusalem are on different calendar dates. Derive the
+  // current Jerusalem date as YYYY-MM-DD via en-CA (which formats as ISO).
+  const tz = "Asia/Jerusalem";
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const todayStr = fmt.format(new Date());
+  // 7-day inclusive window: today minus 6 days, in the same Jerusalem frame.
+  const weekAgoDate = new Date();
+  weekAgoDate.setUTCDate(weekAgoDate.getUTCDate() - 6);
+  const weekStr = fmt.format(weekAgoDate);
 
   function build(filter: (day: string) => boolean): LlmUsageRange {
     const byModel = new Map<string, LlmModelUsage>();
     const byUser = new Map<string, LlmUserUsage>();
     for (const r of rows) {
-      if (!filter(r.day)) continue;
+      // Normalize to the date portion in case PostgREST ever returns a fuller
+      // timestamp than a bare YYYY-MM-DD for the `date` column.
+      const day = String(r.day).slice(0, 10);
+      if (!filter(day)) continue;
       const req = r.requests ?? 0;
       const fail = r.requests_failed ?? 0;
       const tok = Number(r.tokens ?? 0);

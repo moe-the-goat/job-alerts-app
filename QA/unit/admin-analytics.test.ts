@@ -46,7 +46,15 @@ vi.mock("@/lib/supabase/admin", () => ({
 import { loadAdminAnalytics } from "@/app/admin/_lib/analytics";
 
 const TODAY = new Date().toISOString();
-const TODAY_DAY = TODAY.slice(0, 10); // YYYY-MM-DD, matches llm_usage_daily.day
+// llm_usage_daily.day is the JERUSALEM budget day (what the worker writes and
+// the loader now filters "today" against) — compute it the same way so this
+// test is stable even when UTC and Jerusalem are on different calendar dates.
+const TODAY_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Jerusalem",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(new Date());
 const OLD = "2020-01-01T00:00:00Z";
 
 beforeEach(() => {
