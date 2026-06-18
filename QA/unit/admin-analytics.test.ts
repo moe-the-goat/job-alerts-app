@@ -63,6 +63,10 @@ beforeEach(() => {
       { user_id: "u1", is_active: true },
       { user_id: "u3", is_active: true },
     ],
+    preferences: [
+      { user_id: "u1", is_active: true },
+      { user_id: "u2", is_active: false }, // u2 is paused
+    ],
     access_requests: [
       { email: "ada@x.co", first_name: "Ada", last_name: "L", status: "approved", created_at: OLD },
       { email: "new@x.co", first_name: "New", last_name: "P", status: "pending", created_at: TODAY },
@@ -114,6 +118,18 @@ describe("loadAdminAnalytics — runs", () => {
     const u1 = a.runs.perUserLatest.find((r) => r.email === "ada@x.co");
     expect(u1?.status).toBe("success"); // newest of u1's two runs
     expect(a.runs.perUserLatest.filter((r) => r.email === "ada@x.co")).toHaveLength(1);
+  });
+
+  it("attaches per-user action state (userId, isActive, isWhitelisted)", async () => {
+    const a = await loadAdminAnalytics();
+    const u1 = a.runs.perUserLatest.find((r) => r.userId === "u1");
+    const u2 = a.runs.perUserLatest.find((r) => r.userId === "u2");
+    // u1: whitelisted profile + active prefs.
+    expect(u1?.isWhitelisted).toBe(true);
+    expect(u1?.isActive).toBe(true);
+    // u2: whitelisted but paused (is_active=false in preferences).
+    expect(u2?.isWhitelisted).toBe(true);
+    expect(u2?.isActive).toBe(false);
   });
 });
 

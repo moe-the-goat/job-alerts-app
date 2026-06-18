@@ -1,4 +1,5 @@
 import type { AdminAnalytics } from "../_lib/analytics";
+import { UserActions } from "./user-actions";
 
 /** Read-only analytics dashboard. Pure presentation — data comes from the
  *  ADMIN_USER_ID-gated page via loadAdminAnalytics(). */
@@ -96,6 +97,7 @@ export function AnalyticsView({ data }: { data: AdminAnalytics }) {
                   <th className="py-1.5 pr-3 font-medium">Last run</th>
                   <th className="py-1.5 pr-3 font-medium">When</th>
                   <th className="py-1.5 pr-3 font-medium">Approved</th>
+                  <th className="py-1.5 pr-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -124,6 +126,14 @@ export function AnalyticsView({ data }: { data: AdminAnalytics }) {
                     </td>
                     <td className="py-1.5 pr-3 text-[var(--text-tertiary)]">{fmtTime(r.startedAt)}</td>
                     <td className="py-1.5 pr-3 tabular-nums text-[var(--text-secondary)]">{r.approved}</td>
+                    <td className="py-1.5 pr-3">
+                      <UserActions
+                        userId={r.userId}
+                        email={r.email}
+                        isActive={r.isActive}
+                        isWhitelisted={r.isWhitelisted}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

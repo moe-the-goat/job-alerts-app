@@ -28,11 +28,14 @@ export interface RunStats {
   jobsApprovedToday: number;
   scrapedToday: number;
   perUserLatest: {
+    userId: string;
     email: string;
     status: string;
     startedAt: string;
     approved: number;
     error: string | null;
+    isActive: boolean;
+    isWhitelisted: boolean;
   }[];
 }
 
@@ -115,7 +118,7 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
     // No emails — sections fall back to showing the user_id instead.
   }
 
-  const [profilesRes, searchesRes, requestsRes, runsRes, feedbackRes] =
+  const [profilesRes, searchesRes, requestsRes, runsRes, feedbackRes, prefsRes] =
     await Promise.allSettled([
       admin.from("profiles").select("user_id, cv_text, is_whitelisted, created_at"),
       admin.from("search_queries").select("user_id, is_active"),
@@ -125,6 +128,7 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
         .select("user_id, status, started_at, approved, scraped, error")
         .order("started_at", { ascending: false }),
       admin.from("feedback").select("feedback_type, company, submitted_at"),
+      admin.from("preferences").select("user_id, is_active"),
     ]);
 
   const out: AdminAnalytics = structuredClone(EMPTY);
@@ -162,6 +166,16 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
       createdAt: r.created_at,
     }));
 
+  // Per-user state lookups for the action buttons (whitelist from profiles,
+  // is_active from preferences). Default to true when a row is missing so a
+  // user without a preferences row still shows a sane state.
+  const whitelistById = new Map(profiles.map((p) => [p.user_id, !!p.is_whitelisted]));
+  const prefs =
+    prefsRes.status === "fulfilled"
+      ? ((prefsRes.value.data as { user_id: string; is_active: boolean | null }[]) ?? [])
+      : [];
+  const activeById = new Map(prefs.map((p) => [p.user_id, p.is_active !== false]));
+
   // ---- Runs -----------------------------------------------------------------
   const runs = runsRes.status === "fulfilled" ? ((runsRes.value.data as RunRow[]) ?? []) : [];
   const runsToday = runs.filter((r) => r.started_at >= todayStart);
@@ -180,11 +194,14 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
     if (seen.has(r.user_id)) continue;
     seen.add(r.user_id);
     out.runs.perUserLatest.push({
+      userId: r.user_id,
       email: label(r.user_id),
       status: r.status,
       startedAt: r.started_at,
       approved: r.approved ?? 0,
       error: r.error,
+      isActive: activeById.get(r.user_id) ?? true,
+      isWhitelisted: whitelistById.get(r.user_id) ?? false,
     });
   }
 

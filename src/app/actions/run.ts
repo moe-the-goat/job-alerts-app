@@ -46,6 +46,43 @@ async function authedClient() {
   return { supabase, user };
 }
 
+/**
+ * Low-level workflow_dispatch for one user. Returns true on a 204 (accepted).
+ * Shared by the user-facing "Run now" and the admin "trigger run for a user"
+ * action, so the dispatch shape lives in exactly one place. Caller handles
+ * auth, budgets, and locks — this just fires the dispatch.
+ */
+export async function dispatchWorkerRun(
+  userId: string,
+  token: string,
+): Promise<boolean> {
+  const url = `https://api.github.com/repos/${WORKER_OWNER}/${WORKER_REPO}/actions/workflows/${WORKFLOW_FILE}/dispatches`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ref: WORKFLOW_REF,
+        inputs: {
+          dry_run: "false",
+          user_id: userId,
+          skip_due_check: "true",
+          manual: "true",
+        },
+      }),
+      cache: "no-store",
+    });
+    return res.status === 204;
+  } catch {
+    return false;
+  }
+}
+
 /** Release the manual-dispatch lock (clear last_manual_dispatch_at) so a failed
  *  dispatch doesn't lock the user out for the cooldown. Best-effort. */
 async function releaseDispatchClaim(
