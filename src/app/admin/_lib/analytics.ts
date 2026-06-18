@@ -46,10 +46,36 @@ export interface FeedbackStats {
   topBlockedCompanies: { company: string; count: number }[];
 }
 
+// LLM usage rolled up per model over a time range, plus a per-user breakdown.
+export interface LlmModelUsage {
+  model: string;
+  provider: string;
+  requests: number;
+  requestsFailed: number;
+  tokens: number;
+  peakRpm: number; // max peak across the range (today is the meaningful one)
+}
+export interface LlmUserUsage {
+  email: string;
+  model: string;
+  requests: number;
+  tokens: number;
+}
+export interface LlmUsageRange {
+  byModel: LlmModelUsage[];
+  byUser: LlmUserUsage[];
+}
+export interface LlmUsageStats {
+  today: LlmUsageRange;
+  week: LlmUsageRange;
+  all: LlmUsageRange;
+}
+
 export interface AdminAnalytics {
   users: UserStats;
   runs: RunStats;
   feedback: FeedbackStats;
+  llm: LlmUsageStats;
   generatedAt: string;
 }
 
@@ -76,6 +102,11 @@ const EMPTY: AdminAnalytics = {
     perUserLatest: [],
   },
   feedback: { total: 0, today: 0, byType: {}, topBlockedCompanies: [] },
+  llm: {
+    today: { byModel: [], byUser: [] },
+    week: { byModel: [], byUser: [] },
+    all: { byModel: [], byUser: [] },
+  },
   generatedAt: new Date().toISOString(),
 };
 
@@ -118,7 +149,7 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
     // No emails — sections fall back to showing the user_id instead.
   }
 
-  const [profilesRes, searchesRes, requestsRes, runsRes, feedbackRes, prefsRes] =
+  const [profilesRes, searchesRes, requestsRes, runsRes, feedbackRes, prefsRes, llmRes] =
     await Promise.allSettled([
       admin.from("profiles").select("user_id, cv_text, is_whitelisted, created_at"),
       admin.from("search_queries").select("user_id, is_active"),
@@ -129,6 +160,9 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
         .order("started_at", { ascending: false }),
       admin.from("feedback").select("feedback_type, company, submitted_at"),
       admin.from("preferences").select("user_id, is_active"),
+      admin
+        .from("llm_usage_daily")
+        .select("user_id, provider, model, day, requests, requests_failed, tokens, peak_rpm"),
     ]);
 
   const out: AdminAnalytics = structuredClone(EMPTY);
@@ -222,5 +256,82 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
     .slice(0, 8)
     .map(([company, count]) => ({ company, count }));
 
+  // ---- LLM usage ------------------------------------------------------------
+  const llmRows =
+    llmRes.status === "fulfilled" ? ((llmRes.value.data as LlmUsageRow[]) ?? []) : [];
+  out.llm = aggregateLlmUsage(llmRows, label);
+
   return out;
+}
+
+type LlmUsageRow = {
+  user_id: string;
+  provider: string;
+  model: string;
+  day: string; // YYYY-MM-DD
+  requests: number | null;
+  requests_failed: number | null;
+  tokens: number | null;
+  peak_rpm: number | null;
+};
+
+/** Roll daily usage rows into per-model + per-user totals for today / last 7
+ *  days / all-time. `label` resolves a user_id to an email. */
+function aggregateLlmUsage(
+  rows: LlmUsageRow[],
+  label: (userId: string) => string,
+): LlmUsageStats {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().slice(0, 10);
+  const weekAgo = new Date(today);
+  weekAgo.setUTCDate(weekAgo.getUTCDate() - 6); // inclusive 7-day window
+  const weekStr = weekAgo.toISOString().slice(0, 10);
+
+  function build(filter: (day: string) => boolean): LlmUsageRange {
+    const byModel = new Map<string, LlmModelUsage>();
+    const byUser = new Map<string, LlmUserUsage>();
+    for (const r of rows) {
+      if (!filter(r.day)) continue;
+      const req = r.requests ?? 0;
+      const fail = r.requests_failed ?? 0;
+      const tok = Number(r.tokens ?? 0);
+      const peak = r.peak_rpm ?? 0;
+
+      const m = byModel.get(r.model) ?? {
+        model: r.model,
+        provider: r.provider,
+        requests: 0,
+        requestsFailed: 0,
+        tokens: 0,
+        peakRpm: 0,
+      };
+      m.requests += req;
+      m.requestsFailed += fail;
+      m.tokens += tok;
+      m.peakRpm = Math.max(m.peakRpm, peak);
+      byModel.set(r.model, m);
+
+      const uKey = `${r.user_id}|${r.model}`;
+      const u = byUser.get(uKey) ?? {
+        email: label(r.user_id),
+        model: r.model,
+        requests: 0,
+        tokens: 0,
+      };
+      u.requests += req;
+      u.tokens += tok;
+      byUser.set(uKey, u);
+    }
+    return {
+      byModel: [...byModel.values()].sort((a, b) => b.requests - a.requests),
+      byUser: [...byUser.values()].sort((a, b) => b.requests - a.requests),
+    };
+  }
+
+  return {
+    today: build((d) => d === todayStr),
+    week: build((d) => d >= weekStr),
+    all: build(() => true),
+  };
 }

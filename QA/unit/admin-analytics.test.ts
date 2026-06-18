@@ -46,6 +46,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 import { loadAdminAnalytics } from "@/app/admin/_lib/analytics";
 
 const TODAY = new Date().toISOString();
+const TODAY_DAY = TODAY.slice(0, 10); // YYYY-MM-DD, matches llm_usage_daily.day
 const OLD = "2020-01-01T00:00:00Z";
 
 beforeEach(() => {
@@ -82,6 +83,41 @@ beforeEach(() => {
       { feedback_type: "block_company", company: "SpamCo", submitted_at: TODAY },
       { feedback_type: "block_company", company: "SpamCo", submitted_at: OLD },
       { feedback_type: "not_relevant", company: "Beta", submitted_at: OLD },
+    ],
+    llm_usage_daily: [
+      // u1 today: 10 Cerebras calls, 1 failed, 2000 tokens, peak 4/min.
+      {
+        user_id: "u1",
+        provider: "Cerebras",
+        model: "gpt-oss-120b",
+        day: TODAY_DAY,
+        requests: 10,
+        requests_failed: 1,
+        tokens: 2000,
+        peak_rpm: 4,
+      },
+      // u2 today: 5 Cerebras calls (same model → aggregates with u1 per model).
+      {
+        user_id: "u2",
+        provider: "Cerebras",
+        model: "gpt-oss-120b",
+        day: TODAY_DAY,
+        requests: 5,
+        requests_failed: 0,
+        tokens: 500,
+        peak_rpm: 2,
+      },
+      // u1 an old day: should appear in all-time but NOT today.
+      {
+        user_id: "u1",
+        provider: "Groq",
+        model: "llama-3.3-70b-versatile",
+        day: "2020-01-01",
+        requests: 7,
+        requests_failed: 0,
+        tokens: 0,
+        peak_rpm: 1,
+      },
     ],
   };
 });
@@ -140,6 +176,31 @@ describe("loadAdminAnalytics — feedback", () => {
     expect(a.feedback.today).toBe(2);
     expect(a.feedback.byType["block_company"]).toBe(2);
     expect(a.feedback.topBlockedCompanies[0]).toEqual({ company: "SpamCo", count: 2 });
+  });
+});
+
+describe("loadAdminAnalytics — LLM usage", () => {
+  it("aggregates today's usage per model across users", async () => {
+    const a = await loadAdminAnalytics();
+    const cerebrasToday = a.llm.today.byModel.find((m) => m.model === "gpt-oss-120b");
+    // u1 (10) + u2 (5) = 15 requests today; failures 1; tokens 2500; peak = max(4,2)=4.
+    expect(cerebrasToday?.requests).toBe(15);
+    expect(cerebrasToday?.requestsFailed).toBe(1);
+    expect(cerebrasToday?.tokens).toBe(2500);
+    expect(cerebrasToday?.peakRpm).toBe(4);
+    // The old Groq row is NOT in today's range.
+    expect(a.llm.today.byModel.find((m) => m.model.includes("llama"))).toBeUndefined();
+  });
+
+  it("breaks usage down per user and resolves emails", async () => {
+    const a = await loadAdminAnalytics();
+    const u1 = a.llm.today.byUser.find((u) => u.email === "ada@x.co");
+    expect(u1?.requests).toBe(10);
+  });
+
+  it("all-time includes old rows that today excludes", async () => {
+    const a = await loadAdminAnalytics();
+    expect(a.llm.all.byModel.find((m) => m.model.includes("llama"))?.requests).toBe(7);
   });
 });
 

@@ -1,5 +1,6 @@
 import type { AdminAnalytics } from "../_lib/analytics";
 import { UserActions } from "./user-actions";
+import { LlmUsage } from "./llm-usage";
 
 /** Read-only analytics dashboard. Pure presentation — data comes from the
  *  ADMIN_USER_ID-gated page via loadAdminAnalytics(). */
@@ -46,7 +47,7 @@ function fmtTime(iso: string): string {
 }
 
 export function AnalyticsView({ data }: { data: AdminAnalytics }) {
-  const { users, runs, feedback } = data;
+  const { users, runs, feedback, llm } = data;
 
   return (
     <div>
@@ -179,6 +180,8 @@ export function AnalyticsView({ data }: { data: AdminAnalytics }) {
           </div>
         )}
       </Card>
+
+      <LlmUsage data={llm} />
     </div>
   );
 }
