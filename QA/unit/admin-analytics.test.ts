@@ -69,21 +69,30 @@ const TODAY_LEGACY_DAY = (() => {
 beforeEach(() => {
   failTable = null;
   listUsersResult = {
-    data: { users: [{ id: "u1", email: "ada@x.co" }, { id: "u2", email: "bob@x.co" }] },
+    data: {
+      users: [
+        { id: "u1", email: "ada@x.co" },
+        { id: "u2", email: "bob@x.co" },
+        { id: "u4", email: "dan@x.co" },
+      ],
+    },
   };
   tables = {
     profiles: [
       { user_id: "u1", cv_text: "my cv", is_whitelisted: true, created_at: OLD },
       { user_id: "u2", cv_text: "", is_whitelisted: true, created_at: OLD }, // stuck: whitelisted, no cv
       { user_id: "u3", cv_text: "cv", is_whitelisted: false, created_at: OLD }, // not whitelisted
+      { user_id: "u4", cv_text: "dan cv", is_whitelisted: true, created_at: OLD }, // onboarded, zero-result
     ],
     search_queries: [
       { user_id: "u1", is_active: true },
       { user_id: "u3", is_active: true },
+      { user_id: "u4", is_active: true },
     ],
     preferences: [
-      { user_id: "u1", is_active: true },
-      { user_id: "u2", is_active: false }, // u2 is paused
+      { user_id: "u1", is_active: true, next_run_at: TODAY },
+      { user_id: "u2", is_active: false, next_run_at: OLD }, // u2 is paused
+      { user_id: "u4", is_active: true, next_run_at: TODAY }, // active, not overdue
     ],
     access_requests: [
       { email: "ada@x.co", first_name: "Ada", last_name: "L", status: "approved", created_at: OLD },
@@ -91,9 +100,16 @@ beforeEach(() => {
       { email: "no@x.co", first_name: "No", last_name: "P", status: "rejected", created_at: OLD },
     ],
     runs: [
-      { user_id: "u1", status: "success", started_at: TODAY, approved: 5, scraped: 100, error: null },
-      { user_id: "u1", status: "failed", started_at: OLD, approved: 0, scraped: 0, error: "old" },
-      { user_id: "u2", status: "failed", started_at: TODAY, approved: 0, scraped: 50, error: "smtp 535" },
+      { id: 1, user_id: "u1", status: "success", started_at: TODAY, ended_at: TODAY, approved: 5, scraped: 100, error: null },
+      { id: 2, user_id: "u1", status: "failed", started_at: OLD, ended_at: OLD, approved: 0, scraped: 0, error: "old" },
+      { id: 3, user_id: "u2", status: "failed", started_at: TODAY, ended_at: TODAY, approved: 0, scraped: 50, error: "smtp 535 authentication failed" },
+      // A stalled run: still 'running', no ended_at, started long ago (OLD keeps
+      // it out of "today" counts while still tripping the 90-min stall cutoff).
+      { id: 4, user_id: "u2", status: "running", started_at: OLD, ended_at: null, approved: 0, scraped: 0, error: null },
+      // Another failure with the same SMTP signature → groups with run 3.
+      { id: 5, user_id: "u1", status: "failed", started_at: OLD, ended_at: OLD, approved: 0, scraped: 0, error: "SMTP 535 password not accepted" },
+      // u4's latest run succeeded but delivered nothing → zero-result.
+      { id: 6, user_id: "u4", status: "success", started_at: TODAY, ended_at: TODAY, approved: 0, scraped: 80, error: null },
     ],
     feedback: [
       { feedback_type: "applied", company: "Acme", submitted_at: TODAY },
@@ -154,9 +170,9 @@ beforeEach(() => {
 describe("loadAdminAnalytics — users", () => {
   it("counts total, whitelisted, onboarded, stuck, and request statuses", async () => {
     const a = await loadAdminAnalytics();
-    expect(a.users.total).toBe(3);
-    expect(a.users.whitelisted).toBe(2); // u1, u2
-    expect(a.users.onboarded).toBe(2); // u1 and u3 both have cv + active search
+    expect(a.users.total).toBe(4);
+    expect(a.users.whitelisted).toBe(3); // u1, u2, u4
+    expect(a.users.onboarded).toBe(3); // u1, u3, u4 have cv + active search
     expect(a.users.stuck).toBe(1); // u2: whitelisted but no cv -> can't be scored
     expect(a.users.pendingRequests).toBe(1);
     expect(a.users.rejectedRequests).toBe(1);
@@ -171,11 +187,11 @@ describe("loadAdminAnalytics — users", () => {
 describe("loadAdminAnalytics — runs", () => {
   it("breaks down today's runs and sums approved/scraped for today only", async () => {
     const a = await loadAdminAnalytics();
-    expect(a.runs.today.total).toBe(2); // two runs started today
-    expect(a.runs.today.success).toBe(1);
+    expect(a.runs.today.total).toBe(3); // u1 success, u2 failed, u4 success
+    expect(a.runs.today.success).toBe(2);
     expect(a.runs.today.failed).toBe(1);
-    expect(a.runs.jobsApprovedToday).toBe(5);
-    expect(a.runs.scrapedToday).toBe(150);
+    expect(a.runs.jobsApprovedToday).toBe(5); // 5 + 0 + 0
+    expect(a.runs.scrapedToday).toBe(230); // 100 + 50 + 80
   });
 
   it("keeps only the latest run per user and resolves the email", async () => {
@@ -252,6 +268,61 @@ describe("loadAdminAnalytics — resilience", () => {
     failTable = "feedback";
     const a = await loadAdminAnalytics();
     expect(a.feedback.total).toBe(0); // feedback section empty
-    expect(a.users.total).toBe(3); // other sections still populated
+    expect(a.users.total).toBe(4); // other sections still populated
+  });
+});
+
+describe("loadAdminAnalytics — health", () => {
+  it("flags a stalled run (running, no ended_at, started long ago)", async () => {
+    const a = await loadAdminAnalytics();
+    expect(a.health.stalled).toHaveLength(1);
+    expect(a.health.stalled[0].runId).toBe(4);
+    expect(a.health.stalled[0].email).toBe("bob@x.co");
+  });
+
+  it("does NOT flag a fresh running run as stalled", async () => {
+    // A run that just started must not trip the stall cutoff.
+    tables.runs.push({
+      id: 7,
+      user_id: "u1",
+      status: "running",
+      started_at: new Date().toISOString(),
+      ended_at: null,
+      approved: 0,
+      scraped: 0,
+      error: null,
+    });
+    const a = await loadAdminAnalytics();
+    expect(a.health.stalled.map((s) => s.runId)).not.toContain(7);
+  });
+
+  it("groups failures by a normalized signature", async () => {
+    const a = await loadAdminAnalytics();
+    const smtp = a.health.errorGroups.find((g) => g.signature === "Email / SMTP auth");
+    // runs 3 ("smtp 535 ...") and 5 ("SMTP 535 ...") collapse into one group.
+    expect(smtp?.count).toBe(2);
+  });
+
+  it("flags onboarded+active users whose last run delivered nothing", async () => {
+    const a = await loadAdminAnalytics();
+    const dan = a.health.zeroResultUsers.find((u) => u.email === "dan@x.co");
+    expect(dan).toBeTruthy();
+    // u1's last run approved 5 → not zero-result.
+    expect(a.health.zeroResultUsers.some((u) => u.email === "ada@x.co")).toBe(false);
+  });
+
+  it("flags an onboarded+active user who has never run as overdue", async () => {
+    const a = await loadAdminAnalytics();
+    // u3 is onboarded+active (cv + active search, no prefs row → active) and has
+    // no runs at all.
+    const never = a.health.overdueUsers.find((u) => u.userId === "u3");
+    expect(never?.reason).toBe("never");
+  });
+
+  it("does NOT flag paused or not-onboarded users", async () => {
+    const a = await loadAdminAnalytics();
+    // u2 is paused (and has no cv) → never appears in zero-result/overdue.
+    expect(a.health.zeroResultUsers.some((u) => u.email === "bob@x.co")).toBe(false);
+    expect(a.health.overdueUsers.some((u) => u.email === "bob@x.co")).toBe(false);
   });
 });

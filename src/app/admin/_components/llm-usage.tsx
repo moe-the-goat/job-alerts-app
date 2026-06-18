@@ -1,8 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { AlertTriangle } from "lucide-react";
 import type { LlmUsageStats } from "../_lib/analytics";
 import { capFor } from "../_lib/llm-caps";
+
+// Warn once a model crosses this share of any daily cap — enough runway to react
+// (rotate a key, pause a heavy user) before requests actually start failing.
+const NEAR_CAP_PCT = 80;
 
 /**
  * LLM-usage panel for the admin Analytics tab. Shows, per model, requests/tokens
@@ -51,8 +56,41 @@ export function LlmUsage({ data }: { data: LlmUsageStats }) {
     { key: "all", label: "All-time" },
   ];
 
+  // Cap warnings always reflect TODAY (caps are per-day), regardless of the tab.
+  const nearCap = data.today.byModel
+    .flatMap((m) => {
+      const cap = capFor(m.model);
+      const out: { label: string; pct: number; kind: string }[] = [];
+      const rpd = pct(m.requests, cap.rpd);
+      const tpd = cap.tpd ? pct(m.tokens, cap.tpd) : null;
+      if (rpd !== null && rpd >= NEAR_CAP_PCT) out.push({ label: cap.label, pct: rpd, kind: "requests" });
+      if (tpd !== null && tpd >= NEAR_CAP_PCT) out.push({ label: cap.label, pct: tpd, kind: "tokens" });
+      return out;
+    })
+    .sort((a, b) => b.pct - a.pct);
+
   return (
     <section className="mt-8">
+      {nearCap.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-[var(--danger-400)]/30 bg-[var(--danger-400)]/[0.06] px-4 py-2.5">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-[var(--danger-400)]" />
+          <span className="text-[12.5px] font-medium text-[var(--text-primary)]">
+            Approaching today&rsquo;s cap
+          </span>
+          <span className="flex flex-wrap gap-1.5">
+            {nearCap.map((c, i) => (
+              <span
+                key={i}
+                className="rounded-full bg-[var(--bg-overlay)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
+              >
+                {c.label} {c.kind} ·{" "}
+                <span className="tabular-nums font-medium text-[var(--danger-400)]">{c.pct}%</span>
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
+
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-[12px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
           LLM usage

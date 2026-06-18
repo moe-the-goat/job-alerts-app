@@ -1,53 +1,16 @@
 import type { AdminAnalytics } from "../_lib/analytics";
 import { UserActions } from "./user-actions";
 import { LlmUsage } from "./llm-usage";
+import { Card, GroupHeader, Stat, fmtTime } from "./ui";
+import { HealthPanel } from "./health";
 
 /** Read-only analytics dashboard. Pure presentation — data comes from the
- *  ADMIN_USER_ID-gated page via loadAdminAnalytics(). */
-
-function Stat({ label, value, tone }: { label: string; value: number | string; tone?: "danger" | "success" }) {
-  const color =
-    tone === "danger"
-      ? "text-[var(--danger-400)]"
-      : tone === "success"
-        ? "text-[var(--success-400)]"
-        : "text-[var(--text-primary)]";
-  return (
-    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/40 px-4 py-3">
-      <div className={`text-[22px] font-semibold tabular-nums ${color}`}>{value}</div>
-      <div className="mt-0.5 text-[11px] uppercase tracking-wider text-[var(--text-tertiary)]">
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mt-8">
-      <h2 className="mb-3 text-[12px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-function fmtTime(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
+ *  ADMIN_USER_ID-gated page via loadAdminAnalytics(). Organized into three
+ *  groups — Health, Activity, Users — so the page reads top-down from "what
+ *  needs attention" to "how things are going". */
 
 export function AnalyticsView({ data }: { data: AdminAnalytics }) {
-  const { users, runs, feedback, llm } = data;
+  const { health, users, runs, feedback, llm } = data;
 
   return (
     <div>
@@ -55,30 +18,14 @@ export function AnalyticsView({ data }: { data: AdminAnalytics }) {
         Read-only insights across the whole system. Generated {fmtTime(data.generatedAt)}.
       </p>
 
-      <Card title="Users & signups">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Stat label="Total users" value={users.total} />
-          <Stat label="Whitelisted" value={users.whitelisted} tone="success" />
-          <Stat label="Onboarded" value={users.onboarded} />
-          <Stat label="Stuck (no CV/search)" value={users.stuck} tone={users.stuck > 0 ? "danger" : undefined} />
-          <Stat label="Pending requests" value={users.pendingRequests} />
-          <Stat label="Rejected" value={users.rejectedRequests} />
-        </div>
-        {users.recentSignups.length > 0 && (
-          <ul className="mt-3 space-y-1">
-            {users.recentSignups.map((s, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 px-1 py-1 text-[12.5px]">
-                <span className="min-w-0 truncate text-[var(--text-secondary)]">
-                  {s.name} · {s.email}
-                </span>
-                <span className="shrink-0 text-[var(--text-tertiary)]">
-                  {s.status} · {fmtTime(s.createdAt)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      {/* ---- HEALTH: what needs attention right now ---- */}
+      <GroupHeader title="Health" />
+      <div className="mt-4">
+        <HealthPanel data={health} />
+      </div>
+
+      {/* ---- ACTIVITY: how the system is performing ---- */}
+      <GroupHeader title="Activity" />
 
       <Card title="Runs today">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -182,6 +129,34 @@ export function AnalyticsView({ data }: { data: AdminAnalytics }) {
       </Card>
 
       <LlmUsage data={llm} />
+
+      {/* ---- USERS: who's in the system ---- */}
+      <GroupHeader title="Users" />
+
+      <Card title="Users & signups">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <Stat label="Total users" value={users.total} />
+          <Stat label="Whitelisted" value={users.whitelisted} tone="success" />
+          <Stat label="Onboarded" value={users.onboarded} />
+          <Stat label="Stuck (no CV/search)" value={users.stuck} tone={users.stuck > 0 ? "danger" : undefined} />
+          <Stat label="Pending requests" value={users.pendingRequests} />
+          <Stat label="Rejected" value={users.rejectedRequests} />
+        </div>
+        {users.recentSignups.length > 0 && (
+          <ul className="mt-3 space-y-1">
+            {users.recentSignups.map((s, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 px-1 py-1 text-[12.5px]">
+                <span className="min-w-0 truncate text-[var(--text-secondary)]">
+                  {s.name} · {s.email}
+                </span>
+                <span className="shrink-0 text-[var(--text-tertiary)]">
+                  {s.status} · {fmtTime(s.createdAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

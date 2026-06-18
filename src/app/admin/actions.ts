@@ -137,6 +137,34 @@ export async function setUserWhitelistAction(
   };
 }
 
+/** Mark a stalled run (stuck in 'running') as failed so the user isn't blocked
+ *  and the funnel/health stats stop counting a zombie. Only flips rows that are
+ *  still 'running' — a race that already finished is left untouched. */
+export async function resetStalledRunAction(
+  formData: FormData,
+): Promise<AdminActionState> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const runId = Number(formData.get("run_id"));
+  if (!Number.isInteger(runId) || runId <= 0) return { ok: false, error: "Bad run id." };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("runs")
+    .update({
+      status: "failed",
+      ended_at: new Date().toISOString(),
+      error: "Marked failed by admin (stalled run).",
+    })
+    .eq("id", runId)
+    .eq("status", "running"); // never clobber a run that finished in the meantime
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin");
+  return { ok: true, message: "Stalled run cleared." };
+}
+
 /** Trigger a manual worker run for a specific user (admin override — no budget
  *  or cooldown check; the admin is explicitly forcing it). */
 export async function adminTriggerRunAction(

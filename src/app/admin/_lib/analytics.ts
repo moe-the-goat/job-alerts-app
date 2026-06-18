@@ -46,6 +46,23 @@ export interface FeedbackStats {
   topBlockedCompanies: { company: string; count: number }[];
 }
 
+// Operational health — the "what needs attention right now" rollup. Every list
+// is empty when healthy, so the UI can render a calm page and only surface red
+// when something is actually wrong.
+export interface HealthStats {
+  // Runs stuck in 'running' with no ended_at, started over STALL_MINUTES ago —
+  // the worker almost certainly died mid-run.
+  stalled: { userId: string; email: string; startedAt: string; runId: number }[];
+  // Failed runs grouped by a normalized error signature, most common first.
+  errorGroups: { signature: string; count: number; sample: string }[];
+  // Onboarded + active users whose most recent run delivered zero approved jobs
+  // — the pipeline "succeeded" but gave them nothing.
+  zeroResultUsers: { userId: string; email: string; startedAt: string }[];
+  // Whitelisted + active users overdue for a run (next_run_at well in the past)
+  // or who have never had a run at all.
+  overdueUsers: { userId: string; email: string; reason: "overdue" | "never"; since: string | null }[];
+}
+
 // LLM usage rolled up per model over a time range, plus a per-user breakdown.
 export interface LlmModelUsage {
   model: string;
@@ -72,12 +89,21 @@ export interface LlmUsageStats {
 }
 
 export interface AdminAnalytics {
+  health: HealthStats;
   users: UserStats;
   runs: RunStats;
   feedback: FeedbackStats;
   llm: LlmUsageStats;
   generatedAt: string;
 }
+
+// A run is "stalled" if it's been claiming to run for longer than this. The
+// pipeline takes ~35-40 min, so 90 minutes is comfortably past a healthy run
+// without false-positiving on a slow-but-live one.
+const STALL_MINUTES = 90;
+// A user is "overdue" once their scheduled next_run_at is more than this far in
+// the past — past the normal catch-up window, so it signals a real gap.
+const OVERDUE_HOURS = 6;
 
 function startOfTodayUtc(): string {
   const d = new Date();
@@ -86,6 +112,7 @@ function startOfTodayUtc(): string {
 }
 
 const EMPTY: AdminAnalytics = {
+  health: { stalled: [], errorGroups: [], zeroResultUsers: [], overdueUsers: [] },
   users: {
     total: 0,
     whitelisted: 0,
@@ -125,13 +152,16 @@ type RequestRow = {
   created_at: string;
 };
 type RunRow = {
+  id: number;
   user_id: string;
   status: string;
   started_at: string;
+  ended_at: string | null;
   approved: number | null;
   scraped: number | null;
   error: string | null;
 };
+type PrefRow = { user_id: string; is_active: boolean | null; next_run_at: string | null };
 type FeedbackRow = { feedback_type: string; company: string | null; submitted_at: string };
 
 export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
@@ -156,10 +186,10 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
       admin.from("access_requests").select("email, first_name, last_name, status, created_at"),
       admin
         .from("runs")
-        .select("user_id, status, started_at, approved, scraped, error")
+        .select("id, user_id, status, started_at, ended_at, approved, scraped, error")
         .order("started_at", { ascending: false }),
       admin.from("feedback").select("feedback_type, company, submitted_at"),
-      admin.from("preferences").select("user_id, is_active"),
+      admin.from("preferences").select("user_id, is_active, next_run_at"),
       admin
         .from("llm_usage_daily")
         .select("user_id, provider, model, day, requests, requests_failed, tokens, peak_rpm"),
@@ -205,10 +235,9 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
   // user without a preferences row still shows a sane state.
   const whitelistById = new Map(profiles.map((p) => [p.user_id, !!p.is_whitelisted]));
   const prefs =
-    prefsRes.status === "fulfilled"
-      ? ((prefsRes.value.data as { user_id: string; is_active: boolean | null }[]) ?? [])
-      : [];
+    prefsRes.status === "fulfilled" ? ((prefsRes.value.data as PrefRow[]) ?? []) : [];
   const activeById = new Map(prefs.map((p) => [p.user_id, p.is_active !== false]));
+  const nextRunById = new Map(prefs.map((p) => [p.user_id, p.next_run_at]));
 
   // ---- Runs -----------------------------------------------------------------
   const runs = runsRes.status === "fulfilled" ? ((runsRes.value.data as RunRow[]) ?? []) : [];
@@ -224,9 +253,11 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
   }
   // Latest run per user (runs already sorted desc by started_at).
   const seen = new Set<string>();
+  const latestRunByUser = new Map<string, RunRow>();
   for (const r of runs) {
     if (seen.has(r.user_id)) continue;
     seen.add(r.user_id);
+    latestRunByUser.set(r.user_id, r);
     out.runs.perUserLatest.push({
       userId: r.user_id,
       email: label(r.user_id),
@@ -261,7 +292,98 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
     llmRes.status === "fulfilled" ? ((llmRes.value.data as LlmUsageRow[]) ?? []) : [];
   out.llm = aggregateLlmUsage(llmRows, label);
 
+  // ---- Health (operational red flags) ---------------------------------------
+  const now = Date.now();
+  const stallCutoff = now - STALL_MINUTES * 60_000;
+  const overdueCutoff = now - OVERDUE_HOURS * 3_600_000;
+
+  // 1. Stalled runs — still "running" with no ended_at, started long ago.
+  for (const r of runs) {
+    if (r.status !== "running" || r.ended_at) continue;
+    if (new Date(r.started_at).getTime() > stallCutoff) continue;
+    out.health.stalled.push({
+      runId: r.id,
+      userId: r.user_id,
+      email: label(r.user_id),
+      startedAt: r.started_at,
+    });
+  }
+
+  // 2. Failed runs grouped by a normalized error signature.
+  const errorMap = new Map<string, { count: number; sample: string }>();
+  for (const r of runs) {
+    if (r.status !== "failed" || !r.error) continue;
+    const sig = errorSignature(r.error);
+    const e = errorMap.get(sig) ?? { count: 0, sample: r.error };
+    e.count += 1;
+    errorMap.set(sig, e);
+  }
+  out.health.errorGroups = [...errorMap.entries()]
+    .map(([signature, { count, sample }]) => ({ signature, count, sample: sample.slice(0, 140) }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+
+  // The set of onboarded + active users — the only ones we expect to deliver
+  // results / be on schedule. (Reuse the onboarding test from the Users block.)
+  const onboardedActive = new Set(
+    profiles
+      .filter(
+        (p) =>
+          !!(p.cv_text && p.cv_text.trim()) &&
+          usersWithActiveSearch.has(p.user_id) &&
+          (activeById.get(p.user_id) ?? true),
+      )
+      .map((p) => p.user_id),
+  );
+
+  // 3. Zero-result users — onboarded+active, last run succeeded with 0 approved.
+  for (const userId of onboardedActive) {
+    const last = latestRunByUser.get(userId);
+    if (!last || last.status !== "success") continue;
+    if ((last.approved ?? 0) > 0) continue;
+    out.health.zeroResultUsers.push({
+      userId,
+      email: label(userId),
+      startedAt: last.started_at,
+    });
+  }
+  out.health.zeroResultUsers.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+
+  // 4. Overdue users — onboarded+active, next_run_at well in the past, or no run
+  //    ever. Both mean "should have run by now and hasn't".
+  for (const userId of onboardedActive) {
+    const last = latestRunByUser.get(userId);
+    const nextRun = nextRunById.get(userId);
+    if (!last) {
+      out.health.overdueUsers.push({ userId, email: label(userId), reason: "never", since: null });
+    } else if (nextRun && new Date(nextRun).getTime() < overdueCutoff) {
+      out.health.overdueUsers.push({
+        userId,
+        email: label(userId),
+        reason: "overdue",
+        since: nextRun,
+      });
+    }
+  }
+  out.health.overdueUsers.sort((a, b) => (a.since ?? "").localeCompare(b.since ?? ""));
+
   return out;
+}
+
+/** Collapse a raw error string to a stable signature so the same failure across
+ *  users groups together. Matches the common, actionable cases first; otherwise
+ *  falls back to the first few words. */
+function errorSignature(error: string): string {
+  const e = error.toLowerCase();
+  if (/(smtp|535|password not accepted|authentication)/.test(e)) return "Email / SMTP auth";
+  if (/(rate limit|429|too many requests)/.test(e)) return "Rate limited";
+  if (/(quota|budget|exhausted)/.test(e)) return "Quota / budget";
+  if (/(timeout|timed out)/.test(e)) return "Timeout";
+  if (/(50[0-9]|service unavailable|overloaded|bad gateway)/.test(e)) return "Upstream 5xx";
+  if (/(connection|econn|network|dns|resolve)/.test(e)) return "Network / connection";
+  if (/(no cv|cv_text|missing cv|empty cv)/.test(e)) return "Missing CV";
+  // Fallback: first ~6 words, so unknown errors still cluster by their opening.
+  return error.trim().split(/\s+/).slice(0, 6).join(" ").slice(0, 60) || "Unknown error";
 }
 
 type LlmUsageRow = {
