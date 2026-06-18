@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { AdminAnalytics } from "../_lib/analytics";
 import { UserActions } from "./user-actions";
 import { LlmUsage } from "./llm-usage";
@@ -52,8 +53,13 @@ export function AnalyticsView({ data }: { data: AdminAnalytics }) {
               <tbody>
                 {runs.perUserLatest.map((r, i) => (
                   <tr key={i} className="border-t border-[var(--border-muted)]/40">
-                    <td className="min-w-0 max-w-[220px] truncate py-1.5 pr-3 text-[var(--text-secondary)]">
-                      {r.email}
+                    <td className="min-w-0 max-w-[220px] truncate py-1.5 pr-3">
+                      <Link
+                        href={`/admin/users/${r.userId}`}
+                        className="text-[var(--text-secondary)] underline-offset-2 hover:text-[var(--accent-400)] hover:underline outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                      >
+                        {r.email}
+                      </Link>
                     </td>
                     <td className="py-1.5 pr-3">
                       <span

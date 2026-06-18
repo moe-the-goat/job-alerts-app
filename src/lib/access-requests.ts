@@ -118,6 +118,31 @@ export async function approveRequest(
   return { ok: true };
 }
 
+/** Re-send the account-setup ("claim") email to an already-approved user — for
+ *  when the original lands in spam or gets lost. Does NOT re-approve or touch the
+ *  account; just re-issues the same token-less /claim link. */
+export async function resendClaimEmail(
+  email: string,
+  firstName: string,
+): Promise<DecisionResult> {
+  if (!email) return { ok: false, error: "No email on file for this user." };
+  const origin = siteOrigin();
+  const claimUrl = origin
+    ? `${origin}/claim?email=${encodeURIComponent(email)}`
+    : "";
+  try {
+    await sendEmail({
+      to: email,
+      subject: "Your Job Alerts account — set it up",
+      html: approvedEmailHtml(firstName || "there", claimUrl),
+      text: approvedEmailText(firstName || "there", claimUrl),
+    });
+  } catch (e) {
+    return { ok: false, error: `Couldn't send the email: ${(e as Error).message}` };
+  }
+  return { ok: true };
+}
+
 /** Reject a pending request: mark it + email a polite decline. */
 export async function rejectRequest(
   reqRow: AccessRequestRow,

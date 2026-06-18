@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   approveRequest,
   rejectRequest,
+  resendClaimEmail,
   type AccessRequestRow,
 } from "@/lib/access-requests";
 import { dispatchWorkerRun } from "@/app/actions/run";
@@ -135,6 +136,97 @@ export async function setUserWhitelistAction(
     ok: true,
     message: whitelisted ? "User whitelisted." : "Whitelist revoked.",
   };
+}
+
+// How soon a "reschedule to now" nudge sets the next run. A tiny offset in the
+// past so the very next worker tick picks the user up.
+const ALLOWED_FREQ = new Set([1, 24, 48, 168]);
+
+/** Set a user's next_run_at. With `when=now` the user is queued for the next
+ *  tick; otherwise an explicit ISO timestamp is used. Optionally also update the
+ *  cadence (frequency_hours) to one of the allowed values. */
+export async function rescheduleUserAction(
+  formData: FormData,
+): Promise<AdminActionState> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const userId = String(formData.get("user_id") ?? "");
+  if (!UUID_RE.test(userId)) return { ok: false, error: "Bad user id." };
+
+  const when = String(formData.get("when") ?? "now");
+  let nextRunAt: string;
+  if (when === "now") {
+    // 1 minute in the past → eligible immediately, not skipped as "future".
+    nextRunAt = new Date(Date.now() - 60_000).toISOString();
+  } else {
+    const t = new Date(when);
+    if (Number.isNaN(t.getTime())) return { ok: false, error: "Bad date." };
+    nextRunAt = t.toISOString();
+  }
+
+  const update: Record<string, unknown> = { next_run_at: nextRunAt };
+  const freqRaw = formData.get("frequency_hours");
+  if (freqRaw != null && String(freqRaw) !== "") {
+    const freq = Number(freqRaw);
+    if (!ALLOWED_FREQ.has(freq)) return { ok: false, error: "Bad cadence." };
+    update.frequency_hours = freq;
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("preferences").update(update).eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/admin/users/${userId}`);
+  revalidatePath("/admin");
+  return { ok: true, message: "Schedule updated." };
+}
+
+/** Re-send the account-setup ("claim") email to an approved user whose original
+ *  invite was lost. Looks up their email/name, then re-issues the claim link. */
+export async function resendInviteAction(
+  formData: FormData,
+): Promise<AdminActionState> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const userId = String(formData.get("user_id") ?? "");
+  if (!UUID_RE.test(userId)) return { ok: false, error: "Bad user id." };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  if (error || !data?.user?.email) {
+    return { ok: false, error: "Couldn't find this user's email." };
+  }
+  const first = (data.user.user_metadata?.first_name as string | undefined) ?? "";
+  const res = await resendClaimEmail(data.user.email, first);
+  if (!res.ok) return { ok: false, error: res.error };
+
+  return { ok: true, message: `Setup email re-sent to ${data.user.email}.` };
+}
+
+/** Permanently delete a user account and everything it owns. The auth user is
+ *  removed; profiles/preferences/runs/job_results/feedback/etc. cascade via their
+ *  FKs (on delete cascade). Irreversible — the UI double-confirms. */
+export async function deleteUserAction(
+  formData: FormData,
+): Promise<AdminActionState> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const userId = String(formData.get("user_id") ?? "");
+  if (!UUID_RE.test(userId)) return { ok: false, error: "Bad user id." };
+  // Never let the admin delete their own account from here.
+  if (userId === process.env.ADMIN_USER_ID) {
+    return { ok: false, error: "You can't delete the admin account." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admin");
+  return { ok: true, message: "Account deleted." };
 }
 
 /** Mark a stalled run (stuck in 'running') as failed so the user isn't blocked
