@@ -56,6 +56,15 @@ const TODAY_DAY = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 }).format(new Date());
 const OLD = "2020-01-01T00:00:00Z";
+// Older worker builds stamped `day` as the UTC date of the Jerusalem-midnight
+// instant — always the day BEFORE the local calendar date. The loader accepts
+// that legacy value as "today" so pre-fix rows still surface. Compute it the
+// same way: today (Jerusalem) minus one day.
+const TODAY_LEGACY_DAY = (() => {
+  const d = new Date(`${TODAY_DAY}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+})();
 
 beforeEach(() => {
   failTable = null;
@@ -124,6 +133,18 @@ beforeEach(() => {
         requests: 7,
         requests_failed: 0,
         tokens: 0,
+        peak_rpm: 1,
+      },
+      // Legacy off-by-one: a row written by an OLD worker build with the
+      // previous-day stamp must still count as "today".
+      {
+        user_id: "u1",
+        provider: "Gemini",
+        model: "gemini-3.1-flash-lite",
+        day: TODAY_LEGACY_DAY,
+        requests: 3,
+        requests_failed: 0,
+        tokens: 900,
         peak_rpm: 1,
       },
     ],
@@ -209,6 +230,14 @@ describe("loadAdminAnalytics — LLM usage", () => {
   it("all-time includes old rows that today excludes", async () => {
     const a = await loadAdminAnalytics();
     expect(a.llm.all.byModel.find((m) => m.model.includes("llama"))?.requests).toBe(7);
+  });
+
+  it("counts legacy previous-day-stamped rows as today", async () => {
+    // The Gemini row stamped with the off-by-one (previous) day must still show
+    // in Today, not just week/all-time.
+    const a = await loadAdminAnalytics();
+    const gem = a.llm.today.byModel.find((m) => m.model === "gemini-3.1-flash-lite");
+    expect(gem?.requests).toBe(3);
   });
 });
 

@@ -281,10 +281,10 @@ function aggregateLlmUsage(
   rows: LlmUsageRow[],
   label: (userId: string) => string,
 ): LlmUsageStats {
-  // The worker stamps `day` using the JERUSALEM budget day (resets at local
-  // midnight), NOT UTC — so "today" here must match that, or the Today view is
-  // empty whenever UTC and Jerusalem are on different calendar dates. Derive the
-  // current Jerusalem date as YYYY-MM-DD via en-CA (which formats as ISO).
+  // The worker stamps `day` with the JERUSALEM calendar date (the local budget
+  // day). "Today" must match that, or the Today view is empty whenever UTC and
+  // Jerusalem are on different calendar dates. Derive the current Jerusalem date
+  // as YYYY-MM-DD via en-CA (which formats as ISO).
   const tz = "Asia/Jerusalem";
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
@@ -293,6 +293,13 @@ function aggregateLlmUsage(
     day: "2-digit",
   });
   const todayStr = fmt.format(new Date());
+  // Legacy off-by-one: older worker builds stamped `day` as the UTC date of the
+  // Jerusalem-midnight instant, which is always the PREVIOUS calendar day. Accept
+  // that value as "today" too so rows written before the worker fix still show.
+  // Harmless once every row uses the correct date. (Drop after older rows age out.)
+  const prevDay = new Date(`${todayStr}T12:00:00Z`);
+  prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+  const todayLegacyStr = prevDay.toISOString().slice(0, 10);
   // 7-day inclusive window: today minus 6 days, in the same Jerusalem frame.
   const weekAgoDate = new Date();
   weekAgoDate.setUTCDate(weekAgoDate.getUTCDate() - 6);
@@ -343,7 +350,7 @@ function aggregateLlmUsage(
   }
 
   return {
-    today: build((d) => d === todayStr),
+    today: build((d) => d === todayStr || d === todayLegacyStr),
     week: build((d) => d >= weekStr),
     all: build(() => true),
   };
