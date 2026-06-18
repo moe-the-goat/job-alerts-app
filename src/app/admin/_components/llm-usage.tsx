@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import { AlertTriangle } from "lucide-react";
-import type { LlmUsageStats } from "../_lib/analytics";
+import type { LlmDay, LlmUsageStats } from "../_lib/analytics";
 import { capFor } from "../_lib/llm-caps";
+import { Legend, Sparkbars, fmtNum } from "./ui";
 
 // Warn once a model crosses this share of any daily cap — enough runway to react
 // (rotate a key, pause a heavy user) before requests actually start failing.
@@ -45,7 +46,7 @@ function Bar({ value }: { value: number }) {
   );
 }
 
-export function LlmUsage({ data }: { data: LlmUsageStats }) {
+export function LlmUsage({ data, trend }: { data: LlmUsageStats; trend?: LlmDay[] }) {
   const [range, setRange] = React.useState<Range>("today");
   const r = data[range];
   const isToday = range === "today";
@@ -213,7 +214,44 @@ export function LlmUsage({ data }: { data: LlmUsageStats }) {
           </p>
         </div>
       )}
+
+      {trend && trend.some((d) => d.requests > 0) && <Trajectory trend={trend} />}
     </section>
+  );
+}
+
+/** 30-day usage trajectory — total requests per day, with a tokens overlay
+ *  summary. Always-on (independent of the today/week/all toggle) so you can see
+ *  whether usage is trending toward the caps before you hit them. */
+function Trajectory({ trend }: { trend: LlmDay[] }) {
+  const totalReq = trend.reduce((n, d) => n + d.requests, 0);
+  const totalTok = trend.reduce((n, d) => n + d.tokens, 0);
+  const dayName = (iso: string) =>
+    new Date(`${iso}T12:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+  return (
+    <div className="mt-4 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/40 px-4 py-3">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <span className="text-[11px] uppercase tracking-wider text-[var(--text-tertiary)]">
+          {trend.length}-day trajectory
+        </span>
+        <span className="text-[11.5px] text-[var(--text-tertiary)]">
+          {fmtNum(totalReq)} req · {fmtNum(totalTok)} tok
+        </span>
+      </div>
+      <Sparkbars
+        ariaLabel="LLM requests per day over the trend window"
+        height={48}
+        data={trend.map((d) => ({
+          label: d.day,
+          title: `${dayName(d.day)} · ${d.requests} req, ${fmtNum(d.tokens)} tok`,
+          segments: [{ value: d.requests, color: "var(--accent-500)" }],
+        }))}
+      />
+      <div className="mt-2">
+        <Legend items={[{ label: "Requests / day (all models)", color: "var(--accent-500)" }]} />
+      </div>
+    </div>
   );
 }
 

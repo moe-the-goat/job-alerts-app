@@ -3,6 +3,7 @@ import { UserActions } from "./user-actions";
 import { LlmUsage } from "./llm-usage";
 import { Card, GroupHeader, Stat, fmtTime } from "./ui";
 import { HealthPanel } from "./health";
+import { Trends } from "./trends";
 
 /** Read-only analytics dashboard. Pure presentation — data comes from the
  *  ADMIN_USER_ID-gated page via loadAdminAnalytics(). Organized into three
@@ -10,7 +11,7 @@ import { HealthPanel } from "./health";
  *  needs attention" to "how things are going". */
 
 export function AnalyticsView({ data }: { data: AdminAnalytics }) {
-  const { health, users, runs, feedback, llm } = data;
+  const { health, users, runs, feedback, llm, trends } = data;
 
   return (
     <div>
@@ -128,7 +129,13 @@ export function AnalyticsView({ data }: { data: AdminAnalytics }) {
         )}
       </Card>
 
-      <LlmUsage data={llm} />
+      <LlmUsage data={llm} trend={trends.llm} />
+
+      {/* ---- TRENDS: how the system is going over time ---- */}
+      <GroupHeader title="Trends" />
+      <div className="mt-4">
+        <Trends data={trends} />
+      </div>
 
       {/* ---- USERS: who's in the system ---- */}
       <GroupHeader title="Users" />

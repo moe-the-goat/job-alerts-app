@@ -100,16 +100,16 @@ beforeEach(() => {
       { email: "no@x.co", first_name: "No", last_name: "P", status: "rejected", created_at: OLD },
     ],
     runs: [
-      { id: 1, user_id: "u1", status: "success", started_at: TODAY, ended_at: TODAY, approved: 5, scraped: 100, error: null },
-      { id: 2, user_id: "u1", status: "failed", started_at: OLD, ended_at: OLD, approved: 0, scraped: 0, error: "old" },
-      { id: 3, user_id: "u2", status: "failed", started_at: TODAY, ended_at: TODAY, approved: 0, scraped: 50, error: "smtp 535 authentication failed" },
+      { id: 1, user_id: "u1", status: "success", started_at: TODAY, ended_at: TODAY, scraped: 100, filtered: 40, ai_evaluated: 20, approved: 5, lower_ranked: 8, error: null, run_trigger: "scheduled" },
+      { id: 2, user_id: "u1", status: "failed", started_at: OLD, ended_at: OLD, scraped: 0, filtered: 0, ai_evaluated: 0, approved: 0, lower_ranked: 0, error: "old", run_trigger: "scheduled" },
+      { id: 3, user_id: "u2", status: "failed", started_at: TODAY, ended_at: TODAY, scraped: 50, filtered: 10, ai_evaluated: 0, approved: 0, lower_ranked: 0, error: "smtp 535 authentication failed", run_trigger: "manual" },
       // A stalled run: still 'running', no ended_at, started long ago (OLD keeps
       // it out of "today" counts while still tripping the 90-min stall cutoff).
-      { id: 4, user_id: "u2", status: "running", started_at: OLD, ended_at: null, approved: 0, scraped: 0, error: null },
+      { id: 4, user_id: "u2", status: "running", started_at: OLD, ended_at: null, scraped: 0, filtered: 0, ai_evaluated: 0, approved: 0, lower_ranked: 0, error: null, run_trigger: "scheduled" },
       // Another failure with the same SMTP signature → groups with run 3.
-      { id: 5, user_id: "u1", status: "failed", started_at: OLD, ended_at: OLD, approved: 0, scraped: 0, error: "SMTP 535 password not accepted" },
+      { id: 5, user_id: "u1", status: "failed", started_at: OLD, ended_at: OLD, scraped: 0, filtered: 0, ai_evaluated: 0, approved: 0, lower_ranked: 0, error: "SMTP 535 password not accepted", run_trigger: "scheduled" },
       // u4's latest run succeeded but delivered nothing → zero-result.
-      { id: 6, user_id: "u4", status: "success", started_at: TODAY, ended_at: TODAY, approved: 0, scraped: 80, error: null },
+      { id: 6, user_id: "u4", status: "success", started_at: TODAY, ended_at: TODAY, scraped: 80, filtered: 30, ai_evaluated: 15, approved: 0, lower_ranked: 4, error: null, run_trigger: "scheduled" },
     ],
     feedback: [
       { feedback_type: "applied", company: "Acme", submitted_at: TODAY },
@@ -324,5 +324,73 @@ describe("loadAdminAnalytics — health", () => {
     // u2 is paused (and has no cv) → never appears in zero-result/overdue.
     expect(a.health.zeroResultUsers.some((u) => u.email === "bob@x.co")).toBe(false);
     expect(a.health.overdueUsers.some((u) => u.email === "bob@x.co")).toBe(false);
+  });
+});
+
+describe("loadAdminAnalytics — trends", () => {
+  it("produces a dense 30-day axis, oldest → newest, ending today", async () => {
+    const a = await loadAdminAnalytics();
+    expect(a.trends.days).toHaveLength(30);
+    // Each series is the same dense length as the axis (zero-filled gaps).
+    expect(a.trends.runs).toHaveLength(30);
+    expect(a.trends.signups).toHaveLength(30);
+    expect(a.trends.feedback).toHaveLength(30);
+    // Axis is sorted ascending and the last day is today's Jerusalem date.
+    const sorted = [...a.trends.days].sort();
+    expect(a.trends.days).toEqual(sorted);
+    const todayJeru = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Jerusalem",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    expect(a.trends.days[a.trends.days.length - 1]).toBe(todayJeru);
+  });
+
+  it("buckets today's runs into the last day with success/failed split", async () => {
+    const a = await loadAdminAnalytics();
+    const last = a.trends.runs[a.trends.runs.length - 1];
+    // Today: runs 1 (success), 3 (failed), 6 (success).
+    expect(last.total).toBe(3);
+    expect(last.success).toBe(2);
+    expect(last.failed).toBe(1);
+  });
+
+  it("sums the pipeline funnel across the window", async () => {
+    const a = await loadAdminAnalytics();
+    const f = a.trends.funnel;
+    // Only today's runs (1,3,6) are in-window; OLD runs are excluded.
+    expect(f.scraped).toBe(230); // 100 + 50 + 80
+    expect(f.filtered).toBe(80); // 40 + 10 + 30
+    expect(f.aiEvaluated).toBe(35); // 20 + 0 + 15
+    expect(f.approved).toBe(5); // 5 + 0 + 0
+    expect(f.lowerRanked).toBe(12); // 8 + 0 + 4
+  });
+
+  it("counts the scheduled vs manual run mix", async () => {
+    const a = await loadAdminAnalytics();
+    // Today: run 3 is manual; runs 1 and 6 are scheduled.
+    expect(a.trends.runMix.manual).toBe(1);
+    expect(a.trends.runMix.scheduled).toBe(2);
+  });
+
+  it("buckets signups and feedback into the trend window", async () => {
+    const a = await loadAdminAnalytics();
+    const lastSignup = a.trends.signups[a.trends.signups.length - 1];
+    // The TODAY access request is "pending" → counted in requests, not approved.
+    expect(lastSignup.requests).toBe(1);
+    expect(lastSignup.approved).toBe(0);
+    const lastFeedback = a.trends.feedback[a.trends.feedback.length - 1];
+    // TODAY feedback: 1 applied + 1 block_company.
+    expect(lastFeedback.applied).toBe(1);
+    expect(lastFeedback.blocked).toBe(1);
+  });
+
+  it("buckets LLM usage per day (today's rows land on the last day)", async () => {
+    const a = await loadAdminAnalytics();
+    const lastLlm = a.trends.llm[a.trends.llm.length - 1];
+    // Cerebras today: u1 10 + u2 5 = 15 requests, 2500 tokens. (Legacy-day Gemini
+    // and the old Groq row fall on different days.)
+    expect(lastLlm.requests).toBeGreaterThanOrEqual(15);
   });
 });

@@ -88,12 +88,60 @@ export interface LlmUsageStats {
   all: LlmUsageRange;
 }
 
+// Trends — daily time series so the dashboard can show "how things are going"
+// over time, not just a today snapshot. Every series is a dense run of days
+// (no gaps — missing days are zero-filled) ending today, in the Jerusalem
+// calendar frame the rest of the app uses. The UI slices the tail (7/14/30d).
+export interface RunsDay {
+  day: string; // YYYY-MM-DD (Jerusalem)
+  total: number;
+  success: number;
+  failed: number;
+}
+export interface SignupsDay {
+  day: string;
+  requests: number;
+  approved: number;
+}
+export interface FeedbackDay {
+  day: string;
+  applied: number;
+  notRelevant: number;
+  blocked: number;
+  other: number;
+}
+export interface LlmDay {
+  day: string;
+  requests: number;
+  tokens: number;
+}
+// The pipeline funnel, summed over the selected window — where jobs drop off.
+export interface FunnelStats {
+  scraped: number;
+  filtered: number;
+  aiEvaluated: number;
+  approved: number;
+  lowerRanked: number;
+}
+export interface TrendStats {
+  days: string[]; // the dense day axis, oldest → newest (length = TREND_DAYS)
+  runs: RunsDay[];
+  signups: SignupsDay[];
+  feedback: FeedbackDay[];
+  llm: LlmDay[];
+  // Funnel + run-trigger mix over the FULL trend window (UI re-slices runs/etc.
+  // by tail length but these two read the whole window — simplest useful view).
+  funnel: FunnelStats;
+  runMix: { scheduled: number; manual: number };
+}
+
 export interface AdminAnalytics {
   health: HealthStats;
   users: UserStats;
   runs: RunStats;
   feedback: FeedbackStats;
   llm: LlmUsageStats;
+  trends: TrendStats;
   generatedAt: string;
 }
 
@@ -105,11 +153,51 @@ const STALL_MINUTES = 90;
 // the past — past the normal catch-up window, so it signals a real gap.
 const OVERDUE_HOURS = 6;
 
+// How many days of history the trend series span. The UI slices the tail
+// (7/14/30) of this, so 30 is the longest view we offer.
+const TREND_DAYS = 30;
+
+const JERUSALEM_TZ = "Asia/Jerusalem";
+const jeruDateFmt = new Intl.DateTimeFormat("en-CA", {
+  timeZone: JERUSALEM_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** The Jerusalem calendar date (YYYY-MM-DD) for an instant — matches how the
+ *  worker stamps llm_usage_daily and how the LLM "today" filter is computed, so
+ *  every "day" in the dashboard lines up. */
+function jeruDay(at: Date | string): string {
+  const d = typeof at === "string" ? new Date(at) : at;
+  return jeruDateFmt.format(d);
+}
+
+/** A dense list of the last TREND_DAYS Jerusalem dates, oldest → newest. */
+function trendAxis(): string[] {
+  const out: string[] = [];
+  const now = Date.now();
+  for (let i = TREND_DAYS - 1; i >= 0; i--) {
+    out.push(jeruDay(new Date(now - i * 86_400_000)));
+  }
+  return out;
+}
+
 function startOfTodayUtc(): string {
   const d = new Date();
   d.setUTCHours(0, 0, 0, 0);
   return d.toISOString();
 }
+
+const EMPTY_TRENDS: TrendStats = {
+  days: [],
+  runs: [],
+  signups: [],
+  feedback: [],
+  llm: [],
+  funnel: { scraped: 0, filtered: 0, aiEvaluated: 0, approved: 0, lowerRanked: 0 },
+  runMix: { scheduled: 0, manual: 0 },
+};
 
 const EMPTY: AdminAnalytics = {
   health: { stalled: [], errorGroups: [], zeroResultUsers: [], overdueUsers: [] },
@@ -134,6 +222,7 @@ const EMPTY: AdminAnalytics = {
     week: { byModel: [], byUser: [] },
     all: { byModel: [], byUser: [] },
   },
+  trends: EMPTY_TRENDS,
   generatedAt: new Date().toISOString(),
 };
 
@@ -157,9 +246,13 @@ type RunRow = {
   status: string;
   started_at: string;
   ended_at: string | null;
-  approved: number | null;
   scraped: number | null;
+  filtered: number | null;
+  ai_evaluated: number | null;
+  approved: number | null;
+  lower_ranked: number | null;
   error: string | null;
+  run_trigger: string | null;
 };
 type PrefRow = { user_id: string; is_active: boolean | null; next_run_at: string | null };
 type FeedbackRow = { feedback_type: string; company: string | null; submitted_at: string };
@@ -186,7 +279,9 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
       admin.from("access_requests").select("email, first_name, last_name, status, created_at"),
       admin
         .from("runs")
-        .select("id, user_id, status, started_at, ended_at, approved, scraped, error")
+        .select(
+          "id, user_id, status, started_at, ended_at, scraped, filtered, ai_evaluated, approved, lower_ranked, error, run_trigger",
+        )
         .order("started_at", { ascending: false }),
       admin.from("feedback").select("feedback_type, company, submitted_at"),
       admin.from("preferences").select("user_id, is_active, next_run_at"),
@@ -292,6 +387,9 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
     llmRes.status === "fulfilled" ? ((llmRes.value.data as LlmUsageRow[]) ?? []) : [];
   out.llm = aggregateLlmUsage(llmRows, label);
 
+  // ---- Trends (daily series over the last TREND_DAYS days) ------------------
+  out.trends = buildTrends(runs, requests, feedback, llmRows);
+
   // ---- Health (operational red flags) ---------------------------------------
   const now = Date.now();
   const stallCutoff = now - STALL_MINUTES * 60_000;
@@ -384,6 +482,90 @@ function errorSignature(error: string): string {
   if (/(no cv|cv_text|missing cv|empty cv)/.test(e)) return "Missing CV";
   // Fallback: first ~6 words, so unknown errors still cluster by their opening.
   return error.trim().split(/\s+/).slice(0, 6).join(" ").slice(0, 60) || "Unknown error";
+}
+
+/** Build the daily trend series. Each series is dense over the TREND_DAYS axis
+ *  (zero-filled gaps) so the UI can draw a continuous chart and slice the tail
+ *  to 7/14/30 days without reasoning about missing dates. Days are keyed by the
+ *  Jerusalem calendar date, matching the rest of the dashboard. */
+function buildTrends(
+  runs: RunRow[],
+  requests: RequestRow[],
+  feedback: FeedbackRow[],
+  llmRows: LlmUsageRow[],
+): TrendStats {
+  const days = trendAxis();
+  const inWindow = new Set(days);
+
+  // Seed dense, zero-filled maps keyed by day.
+  const runsByDay = new Map(days.map((d) => [d, { day: d, total: 0, success: 0, failed: 0 }]));
+  const signupsByDay = new Map(days.map((d) => [d, { day: d, requests: 0, approved: 0 }]));
+  const feedbackByDay = new Map(
+    days.map((d) => [d, { day: d, applied: 0, notRelevant: 0, blocked: 0, other: 0 }]),
+  );
+  const llmByDay = new Map(days.map((d) => [d, { day: d, requests: 0, tokens: 0 }]));
+
+  const funnel: FunnelStats = {
+    scraped: 0,
+    filtered: 0,
+    aiEvaluated: 0,
+    approved: 0,
+    lowerRanked: 0,
+  };
+  const runMix = { scheduled: 0, manual: 0 };
+
+  for (const r of runs) {
+    const d = jeruDay(r.started_at);
+    if (!inWindow.has(d)) continue;
+    const bucket = runsByDay.get(d)!;
+    bucket.total += 1;
+    if (r.status === "success") bucket.success += 1;
+    else if (r.status === "failed") bucket.failed += 1;
+    // Funnel + trigger mix over the whole window (counts terminal runs' work).
+    funnel.scraped += r.scraped ?? 0;
+    funnel.filtered += r.filtered ?? 0;
+    funnel.aiEvaluated += r.ai_evaluated ?? 0;
+    funnel.approved += r.approved ?? 0;
+    funnel.lowerRanked += r.lower_ranked ?? 0;
+    if (r.run_trigger === "manual") runMix.manual += 1;
+    else runMix.scheduled += 1; // null/unknown defaults to scheduled (the cron path)
+  }
+
+  for (const req of requests) {
+    const d = jeruDay(req.created_at);
+    if (!inWindow.has(d)) continue;
+    const bucket = signupsByDay.get(d)!;
+    bucket.requests += 1;
+    if (req.status === "approved") bucket.approved += 1;
+  }
+
+  for (const f of feedback) {
+    const d = jeruDay(f.submitted_at);
+    if (!inWindow.has(d)) continue;
+    const bucket = feedbackByDay.get(d)!;
+    if (f.feedback_type === "applied") bucket.applied += 1;
+    else if (f.feedback_type === "not_relevant") bucket.notRelevant += 1;
+    else if (f.feedback_type === "block_company") bucket.blocked += 1;
+    else bucket.other += 1;
+  }
+
+  for (const row of llmRows) {
+    const d = String(row.day).slice(0, 10);
+    if (!inWindow.has(d)) continue;
+    const bucket = llmByDay.get(d)!;
+    bucket.requests += row.requests ?? 0;
+    bucket.tokens += Number(row.tokens ?? 0);
+  }
+
+  return {
+    days,
+    runs: days.map((d) => runsByDay.get(d)!),
+    signups: days.map((d) => signupsByDay.get(d)!),
+    feedback: days.map((d) => feedbackByDay.get(d)!),
+    llm: days.map((d) => llmByDay.get(d)!),
+    funnel,
+    runMix,
+  };
 }
 
 type LlmUsageRow = {
