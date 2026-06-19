@@ -183,12 +183,6 @@ function trendAxis(): string[] {
   return out;
 }
 
-function startOfTodayUtc(): string {
-  const d = new Date();
-  d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString();
-}
-
 const EMPTY_TRENDS: TrendStats = {
   days: [],
   runs: [],
@@ -259,7 +253,10 @@ type FeedbackRow = { feedback_type: string; company: string | null; submitted_at
 
 export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
   const admin = createAdminClient();
-  const todayStart = startOfTodayUtc();
+  // "Today" is the JERUSALEM calendar day — the same boundary the worker uses
+  // for the daily run budget and the LLM-usage day stamp. Using UTC here made
+  // "Runs today" disagree with the worker's budget by the 2-3h Jerusalem→UTC gap.
+  const todayJeru = jeruDay(new Date());
 
   // Email lives in auth.users, not profiles — fetch a user_id -> email map.
   const emailById = new Map<string, string>();
@@ -336,7 +333,7 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
 
   // ---- Runs -----------------------------------------------------------------
   const runs = runsRes.status === "fulfilled" ? ((runsRes.value.data as RunRow[]) ?? []) : [];
-  const runsToday = runs.filter((r) => r.started_at >= todayStart);
+  const runsToday = runs.filter((r) => jeruDay(r.started_at) === todayJeru);
   out.runs.today.total = runsToday.length;
   for (const r of runsToday) {
     if (r.status === "success") out.runs.today.success += 1;
@@ -371,7 +368,7 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
   out.feedback.total = feedback.length;
   const blockedCounts = new Map<string, number>();
   for (const f of feedback) {
-    if (f.submitted_at >= todayStart) out.feedback.today += 1;
+    if (jeruDay(f.submitted_at) === todayJeru) out.feedback.today += 1;
     out.feedback.byType[f.feedback_type] = (out.feedback.byType[f.feedback_type] ?? 0) + 1;
     if (f.feedback_type === "block_company" && f.company) {
       blockedCounts.set(f.company, (blockedCounts.get(f.company) ?? 0) + 1);

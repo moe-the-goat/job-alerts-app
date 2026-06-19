@@ -55,6 +55,7 @@ async function authedClient() {
 export async function dispatchWorkerRun(
   userId: string,
   token: string,
+  opts: { adminOverride?: boolean } = {},
 ): Promise<boolean> {
   const url = `https://api.github.com/repos/${WORKER_OWNER}/${WORKER_REPO}/actions/workflows/${WORKFLOW_FILE}/dispatches`;
   try {
@@ -73,6 +74,9 @@ export async function dispatchWorkerRun(
           user_id: userId,
           skip_due_check: "true",
           manual: "true",
+          // Admin forced run bypasses the worker's 2/day budget cap. Only the
+          // admin trigger sets this; the user-facing Run-now never does.
+          admin_override: opts.adminOverride ? "true" : "false",
         },
       }),
       cache: "no-store",

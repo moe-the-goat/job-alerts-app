@@ -271,9 +271,12 @@ export async function adminTriggerRunAction(
   const token = process.env.GH_DISPATCH_TOKEN;
   if (!token) return { ok: false, error: "Dispatch token not configured." };
 
-  const ok = await dispatchWorkerRun(userId, token);
+  // Admin override: a forced run bypasses the worker's 2/day budget cap, so this
+  // actually runs even for a user who's already at their daily limit (previously
+  // the worker silently skipped it while the UI claimed success).
+  const ok = await dispatchWorkerRun(userId, token, { adminOverride: true });
   if (!ok) return { ok: false, error: "Couldn't start the run. Try again." };
 
   revalidatePath("/admin");
-  return { ok: true, message: "Run triggered — results in ~35-40 min." };
+  return { ok: true, message: "Forced run triggered — results in ~35-40 min." };
 }
