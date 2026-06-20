@@ -19,10 +19,11 @@ function makeQuery(table: string) {
     failTable === table
       ? Promise.reject(new Error("boom"))
       : Promise.resolve({ data: tables[table] ?? [] });
-  // Chainable: select() and order() both return the thenable.
+  // Chainable: select() / order() / limit() all return the thenable.
   const chain: Record<string, unknown> = {
     select: () => chain,
     order: () => chain,
+    limit: () => chain,
     then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
       result.then(res, rej),
   };

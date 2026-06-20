@@ -269,22 +269,33 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
     // No emails — sections fall back to showing the user_id instead.
   }
 
+  // PostgREST caps a query at ~1000 rows by default and TRUNCATES silently —
+  // which would make the high-volume event tables (runs / feedback / llm usage)
+  // under-count as data grows. Set an explicit ceiling well above any realistic
+  // near-term volume so the dashboard stays accurate. (At true scale these move
+  // to date-bounded queries / server-side rollups — see the audit notes.)
+  const ROW_CAP = 100_000;
   const [profilesRes, searchesRes, requestsRes, runsRes, feedbackRes, prefsRes, llmRes] =
     await Promise.allSettled([
-      admin.from("profiles").select("user_id, cv_text, is_whitelisted, created_at"),
-      admin.from("search_queries").select("user_id, is_active"),
-      admin.from("access_requests").select("email, first_name, last_name, status, created_at"),
+      admin.from("profiles").select("user_id, cv_text, is_whitelisted, created_at").limit(ROW_CAP),
+      admin.from("search_queries").select("user_id, is_active").limit(ROW_CAP),
+      admin
+        .from("access_requests")
+        .select("email, first_name, last_name, status, created_at")
+        .limit(ROW_CAP),
       admin
         .from("runs")
         .select(
           "id, user_id, status, started_at, ended_at, scraped, filtered, ai_evaluated, approved, lower_ranked, error, run_trigger",
         )
-        .order("started_at", { ascending: false }),
-      admin.from("feedback").select("feedback_type, company, submitted_at"),
-      admin.from("preferences").select("user_id, is_active, next_run_at"),
+        .order("started_at", { ascending: false })
+        .limit(ROW_CAP),
+      admin.from("feedback").select("feedback_type, company, submitted_at").limit(ROW_CAP),
+      admin.from("preferences").select("user_id, is_active, next_run_at").limit(ROW_CAP),
       admin
         .from("llm_usage_daily")
-        .select("user_id, provider, model, day, requests, requests_failed, tokens, peak_rpm"),
+        .select("user_id, provider, model, day, requests, requests_failed, tokens, peak_rpm")
+        .limit(ROW_CAP),
     ]);
 
   const out: AdminAnalytics = structuredClone(EMPTY);
