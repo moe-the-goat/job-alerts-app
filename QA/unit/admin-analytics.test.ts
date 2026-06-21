@@ -183,6 +183,23 @@ describe("loadAdminAnalytics — users", () => {
     const a = await loadAdminAnalytics();
     expect(a.users.recentSignups[0].email).toBe("new@x.co"); // TODAY is newest
   });
+
+  it("builds a directory of EVERY account, not just users with runs", async () => {
+    const a = await loadAdminAnalytics();
+    // 4 profiles (u1..u4) → 4 directory rows, including u3 which has no run.
+    expect(a.users.directory).toHaveLength(4);
+    const u3 = a.users.directory.find((d) => d.userId === "u3");
+    expect(u3).toBeTruthy();
+    expect(u3?.lastRunAt).toBeNull(); // u3 never ran
+    // u1 ran and is onboarded; surfaced with its latest run + status.
+    const u1 = a.users.directory.find((d) => d.userId === "u1");
+    expect(u1?.onboarded).toBe(true);
+    expect(u1?.lastRunStatus).toBe("success");
+    // u2 is paused (preferences is_active=false) and has no CV → not onboarded.
+    const u2 = a.users.directory.find((d) => d.userId === "u2");
+    expect(u2?.isActive).toBe(false);
+    expect(u2?.onboarded).toBe(false);
+  });
 });
 
 describe("loadAdminAnalytics — runs", () => {

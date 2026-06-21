@@ -5,6 +5,7 @@ import { LlmUsage } from "./llm-usage";
 import { Card, GroupHeader, Stat, fmtTime } from "./ui";
 import { HealthPanel } from "./health";
 import { Trends } from "./trends";
+import { UserDirectory } from "./user-directory";
 
 /** Read-only analytics dashboard. Pure presentation — data comes from the
  *  ADMIN_USER_ID-gated page via loadAdminAnalytics(). Organized into three
@@ -170,6 +171,8 @@ export function AnalyticsView({ data }: { data: AdminAnalytics }) {
           </ul>
         )}
       </Card>
+
+      <UserDirectory users={users.directory} />
     </div>
   );
 }

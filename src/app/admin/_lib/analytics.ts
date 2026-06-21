@@ -13,6 +13,19 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * than fully-down.
  */
 
+// One row per real account — the full roster (not just users with a run today),
+// so the admin has a directory into the per-user drill-downs.
+export interface UserDirectoryEntry {
+  userId: string;
+  email: string;
+  isActive: boolean;
+  isWhitelisted: boolean;
+  onboarded: boolean;
+  lastRunAt: string | null;
+  lastRunStatus: string | null;
+  createdAt: string | null;
+}
+
 export interface UserStats {
   total: number;
   whitelisted: number;
@@ -21,6 +34,7 @@ export interface UserStats {
   onboarded: number; // has cv_text AND at least one active search
   stuck: number; // whitelisted but not onboarded (signed up, can't be scored yet)
   recentSignups: { email: string; name: string; status: string; createdAt: string }[];
+  directory: UserDirectoryEntry[]; // all accounts, newest signup first
 }
 
 export interface RunStats {
@@ -203,6 +217,7 @@ const EMPTY: AdminAnalytics = {
     onboarded: 0,
     stuck: 0,
     recentSignups: [],
+    directory: [],
   },
   runs: {
     today: { total: 0, success: 0, failed: 0, running: 0, skipped: 0 },
@@ -372,6 +387,24 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
       isWhitelisted: whitelistById.get(r.user_id) ?? false,
     });
   }
+
+  // ---- User directory (every account, not just those with a run today) ------
+  out.users.directory = profiles
+    .map((p) => {
+      const last = latestRunByUser.get(p.user_id);
+      return {
+        userId: p.user_id,
+        email: label(p.user_id),
+        isActive: activeById.get(p.user_id) ?? true,
+        isWhitelisted: !!p.is_whitelisted,
+        onboarded:
+          !!(p.cv_text && p.cv_text.trim()) && usersWithActiveSearch.has(p.user_id),
+        lastRunAt: last?.started_at ?? null,
+        lastRunStatus: last?.status ?? null,
+        createdAt: p.created_at ?? null,
+      };
+    })
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 
   // ---- Feedback -------------------------------------------------------------
   const feedback =
