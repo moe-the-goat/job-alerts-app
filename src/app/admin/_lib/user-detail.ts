@@ -29,6 +29,8 @@ export interface UserRun {
   approved: number;
   lowerRanked: number;
   error: string | null;
+  emailStatus: string | null;
+  emailError: string | null;
 }
 
 export interface UserJobResult {
@@ -146,7 +148,7 @@ export async function loadUserDetail(userId: string): Promise<UserDetail> {
       admin
         .from("runs")
         .select(
-          "id, status, run_trigger, started_at, ended_at, scraped, filtered, ai_evaluated, approved, lower_ranked, error",
+          "id, status, run_trigger, started_at, ended_at, scraped, filtered, ai_evaluated, approved, lower_ranked, error, email_status, email_error",
         )
         .eq("user_id", userId)
         .order("started_at", { ascending: false })
@@ -308,6 +310,8 @@ type RunDbRow = {
   approved: number | null;
   lower_ranked: number | null;
   error: string | null;
+  email_status: string | null;
+  email_error: string | null;
 };
 type JobResultDbRow = {
   title: string | null;
@@ -343,5 +347,7 @@ function mapRun(r: RunDbRow): UserRun {
     approved: r.approved ?? 0,
     lowerRanked: r.lower_ranked ?? 0,
     error: r.error,
+    emailStatus: r.email_status ?? null,
+    emailError: r.email_error ?? null,
   };
 }

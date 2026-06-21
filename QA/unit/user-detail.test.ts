@@ -101,8 +101,8 @@ beforeEach(() => {
       { id: 1, user_id: U, search_term: "frontend", location: "Berlin", is_remote: false, is_active: false },
     ],
     runs: [
-      { id: 10, user_id: U, status: "success", run_trigger: "scheduled", started_at: "2026-06-18T06:00:00Z", ended_at: "2026-06-18T06:30:00Z", scraped: 100, filtered: 40, ai_evaluated: 20, approved: 5, lower_ranked: 8, error: null },
-      { id: 9, user_id: U, status: "failed", run_trigger: "manual", started_at: "2026-06-17T06:00:00Z", ended_at: "2026-06-17T06:10:00Z", scraped: 0, filtered: 0, ai_evaluated: 0, approved: 0, lower_ranked: 0, error: "smtp 535" },
+      { id: 10, user_id: U, status: "success", run_trigger: "scheduled", started_at: "2026-06-18T06:00:00Z", ended_at: "2026-06-18T06:30:00Z", scraped: 100, filtered: 40, ai_evaluated: 20, approved: 5, lower_ranked: 8, error: null, email_status: "sent", email_error: null },
+      { id: 9, user_id: U, status: "failed", run_trigger: "manual", started_at: "2026-06-17T06:00:00Z", ended_at: "2026-06-17T06:10:00Z", scraped: 0, filtered: 0, ai_evaluated: 0, approved: 0, lower_ranked: 0, error: "smtp 535", email_status: "none", email_error: null },
     ],
     job_results: [
       { run_id: 10, user_id: U, title: "Backend Eng", company: "Acme", location: "Remote", job_url: "u1", origin: "global", ai_evaluated: true, ai_verdict: "great", match_percentage: 88, suspicious: false },
@@ -145,6 +145,7 @@ describe("loadUserDetail", () => {
     expect(d.counts.runs).toBe(2);
     expect(d.runs[0].id).toBe(10); // newest started_at first
     expect(d.runs[0].trigger).toBe("scheduled");
+    expect(d.runs[0].emailStatus).toBe("sent"); // delivery outcome surfaced
   });
 
   it("shows only the latest run's results, AI-evaluated first", async () => {

@@ -198,6 +198,7 @@ export function UserDetailView({ detail }: { detail: UserDetail }) {
                   <th className="py-1.5 pr-3 font-medium tabular-nums">Scraped</th>
                   <th className="py-1.5 pr-3 font-medium tabular-nums">Eval</th>
                   <th className="py-1.5 pr-3 font-medium tabular-nums">Approved</th>
+                  <th className="py-1.5 pr-3 font-medium">Email</th>
                 </tr>
               </thead>
               <tbody>
@@ -214,6 +215,9 @@ export function UserDetailView({ detail }: { detail: UserDetail }) {
                     <td className="py-1.5 pr-3 tabular-nums text-[var(--text-secondary)]">{r.scraped}</td>
                     <td className="py-1.5 pr-3 tabular-nums text-[var(--text-secondary)]">{r.aiEvaluated}</td>
                     <td className="py-1.5 pr-3 tabular-nums text-[var(--text-secondary)]">{r.approved}</td>
+                    <td className="py-1.5 pr-3">
+                      <EmailStatus status={r.emailStatus} error={r.emailError} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -300,6 +304,18 @@ function Empty({ children }: { children: React.ReactNode }) {
     <p className="rounded-lg border border-dashed border-[var(--border-muted)] px-4 py-5 text-center text-[12.5px] text-[var(--text-tertiary)]">
       {children}
     </p>
+  );
+}
+
+function EmailStatus({ status, error }: { status: string | null; error: string | null }) {
+  if (!status || status === "none") return <span className="text-[var(--text-tertiary)]">—</span>;
+  if (status === "sent") return <span className="text-[var(--success-400)]">sent</span>;
+  if (status === "skipped") return <span className="text-[var(--text-tertiary)]">skipped</span>;
+  // failed
+  return (
+    <span className="text-[var(--danger-400)]" title={error ?? "send failed"}>
+      failed
+    </span>
   );
 }
 

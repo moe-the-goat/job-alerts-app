@@ -101,7 +101,7 @@ beforeEach(() => {
       { email: "no@x.co", first_name: "No", last_name: "P", status: "rejected", created_at: OLD },
     ],
     runs: [
-      { id: 1, user_id: "u1", status: "success", started_at: TODAY, ended_at: TODAY, scraped: 100, filtered: 40, ai_evaluated: 20, approved: 5, lower_ranked: 8, error: null, run_trigger: "scheduled" },
+      { id: 1, user_id: "u1", status: "success", started_at: TODAY, ended_at: TODAY, scraped: 100, filtered: 40, ai_evaluated: 20, approved: 5, lower_ranked: 8, error: null, run_trigger: "scheduled", email_status: "failed", email_error: "SMTP 535 auth" },
       { id: 2, user_id: "u1", status: "failed", started_at: OLD, ended_at: OLD, scraped: 0, filtered: 0, ai_evaluated: 0, approved: 0, lower_ranked: 0, error: "old", run_trigger: "scheduled" },
       { id: 3, user_id: "u2", status: "failed", started_at: TODAY, ended_at: TODAY, scraped: 50, filtered: 10, ai_evaluated: 0, approved: 0, lower_ranked: 0, error: "smtp 535 authentication failed", run_trigger: "manual" },
       // A stalled run: still 'running', no ended_at, started long ago (OLD keeps
@@ -110,7 +110,7 @@ beforeEach(() => {
       // Another failure with the same SMTP signature → groups with run 3.
       { id: 5, user_id: "u1", status: "failed", started_at: OLD, ended_at: OLD, scraped: 0, filtered: 0, ai_evaluated: 0, approved: 0, lower_ranked: 0, error: "SMTP 535 password not accepted", run_trigger: "scheduled" },
       // u4's latest run succeeded but delivered nothing → zero-result.
-      { id: 6, user_id: "u4", status: "success", started_at: TODAY, ended_at: TODAY, scraped: 80, filtered: 30, ai_evaluated: 15, approved: 0, lower_ranked: 4, error: null, run_trigger: "scheduled" },
+      { id: 6, user_id: "u4", status: "success", started_at: TODAY, ended_at: TODAY, scraped: 80, filtered: 30, ai_evaluated: 15, approved: 0, lower_ranked: 4, error: null, run_trigger: "scheduled", email_status: "sent" },
     ],
     feedback: [
       { feedback_type: "applied", company: "Acme", submitted_at: TODAY },
@@ -342,6 +342,14 @@ describe("loadAdminAnalytics — health", () => {
     // u2 is paused (and has no cv) → never appears in zero-result/overdue.
     expect(a.health.zeroResultUsers.some((u) => u.email === "bob@x.co")).toBe(false);
     expect(a.health.overdueUsers.some((u) => u.email === "bob@x.co")).toBe(false);
+  });
+
+  it("flags today's email send failures (Tier D)", async () => {
+    const a = await loadAdminAnalytics();
+    // Run 1 (u1, today) succeeded but its email failed.
+    expect(a.health.emailFailures).toHaveLength(1);
+    expect(a.health.emailFailures[0].email).toBe("ada@x.co");
+    expect(a.health.emailFailures[0].error).toBe("SMTP 535 auth");
   });
 });
 

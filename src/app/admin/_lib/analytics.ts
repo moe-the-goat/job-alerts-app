@@ -75,6 +75,9 @@ export interface HealthStats {
   // Whitelisted + active users overdue for a run (next_run_at well in the past)
   // or who have never had a run at all.
   overdueUsers: { userId: string; email: string; reason: "overdue" | "never"; since: string | null }[];
+  // Runs that completed but whose EMAIL failed to send (Tier D) — the user got
+  // nothing even though the run "succeeded". Grouped by error signature.
+  emailFailures: { userId: string; email: string; startedAt: string; error: string | null }[];
 }
 
 // LLM usage rolled up per model over a time range, plus a per-user breakdown.
@@ -208,7 +211,7 @@ const EMPTY_TRENDS: TrendStats = {
 };
 
 const EMPTY: AdminAnalytics = {
-  health: { stalled: [], errorGroups: [], zeroResultUsers: [], overdueUsers: [] },
+  health: { stalled: [], errorGroups: [], zeroResultUsers: [], overdueUsers: [], emailFailures: [] },
   users: {
     total: 0,
     whitelisted: 0,
@@ -262,6 +265,8 @@ type RunRow = {
   lower_ranked: number | null;
   error: string | null;
   run_trigger: string | null;
+  email_status: string | null;
+  email_error: string | null;
 };
 type PrefRow = { user_id: string; is_active: boolean | null; next_run_at: string | null };
 type FeedbackRow = { feedback_type: string; company: string | null; submitted_at: string };
@@ -301,7 +306,7 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
       admin
         .from("runs")
         .select(
-          "id, user_id, status, started_at, ended_at, scraped, filtered, ai_evaluated, approved, lower_ranked, error, run_trigger",
+          "id, user_id, status, started_at, ended_at, scraped, filtered, ai_evaluated, approved, lower_ranked, error, run_trigger, email_status, email_error",
         )
         .order("started_at", { ascending: false })
         .limit(ROW_CAP),
@@ -505,6 +510,19 @@ export async function loadAdminAnalytics(): Promise<AdminAnalytics> {
     }
   }
   out.health.overdueUsers.sort((a, b) => (a.since ?? "").localeCompare(b.since ?? ""));
+
+  // 5. Email failures — runs whose email send failed (Tier D). The run row knows
+  //    the outcome; surface today's failures so SMTP problems are visible (a run
+  //    can be "success" while the user got no email). Keep the most recent.
+  out.health.emailFailures = runs
+    .filter((r) => r.email_status === "failed" && jeruDay(r.started_at) === todayJeru)
+    .slice(0, 12)
+    .map((r) => ({
+      userId: r.user_id,
+      email: label(r.user_id),
+      startedAt: r.started_at,
+      error: r.email_error,
+    }));
 
   return out;
 }

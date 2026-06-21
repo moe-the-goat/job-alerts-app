@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  MailX,
   PackageOpen,
   XCircle,
 } from "lucide-react";
@@ -25,7 +26,8 @@ export function HealthPanel({ data }: { data: HealthStats }) {
     data.stalled.length +
     data.errorGroups.reduce((n, g) => n + g.count, 0) +
     data.zeroResultUsers.length +
-    data.overdueUsers.length;
+    data.overdueUsers.length +
+    data.emailFailures.length;
 
   return (
     <div className="space-y-4">
@@ -33,6 +35,7 @@ export function HealthPanel({ data }: { data: HealthStats }) {
 
       {data.stalled.length > 0 && <StalledBlock rows={data.stalled} />}
       {data.errorGroups.length > 0 && <ErrorsBlock groups={data.errorGroups} />}
+      {data.emailFailures.length > 0 && <EmailFailuresBlock rows={data.emailFailures} />}
       {data.zeroResultUsers.length > 0 && <ZeroResultBlock rows={data.zeroResultUsers} />}
       {data.overdueUsers.length > 0 && <OverdueBlock rows={data.overdueUsers} />}
     </div>
@@ -46,7 +49,7 @@ function StatusBanner({ data, issues }: { data: HealthStats; issues: number }) {
       <div className="flex items-center gap-2 rounded-lg border border-[var(--success-400)]/30 bg-[var(--success-400)]/[0.06] px-4 py-3">
         <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--success-400)]" />
         <span className="text-[13px] text-[var(--text-secondary)]">
-          All clear — no stalled runs, errors, empty deliveries, or overdue users.
+          All clear — no stalled runs, errors, email failures, empty deliveries, or overdue users.
         </span>
       </div>
     );
@@ -55,6 +58,7 @@ function StatusBanner({ data, issues }: { data: HealthStats; issues: number }) {
   const chips: { label: string; n: number }[] = [
     { label: "stalled", n: data.stalled.length },
     { label: "failing", n: data.errorGroups.reduce((s, g) => s + g.count, 0) },
+    { label: "email failed", n: data.emailFailures.length },
     { label: "no results", n: data.zeroResultUsers.length },
     { label: "overdue", n: data.overdueUsers.length },
   ].filter((c) => c.n > 0);
@@ -171,6 +175,31 @@ function ErrorsBlock({ groups }: { groups: HealthStats["errorGroups"] }) {
           <span key={g.signature} title={g.sample}>
             <Pill label={g.signature} count={g.count} tone="danger" />
           </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EmailFailuresBlock({ rows }: { rows: HealthStats["emailFailures"] }) {
+  return (
+    <div>
+      <BlockHead
+        icon={<MailX className="h-3.5 w-3.5 text-[var(--danger-400)]" />}
+        title="Email send failures"
+        hint="run succeeded but the alert email didn't send"
+      />
+      <div className="space-y-1.5">
+        {rows.map((r, i) => (
+          <div key={i} className={rowCls}>
+            <span className="min-w-0 truncate text-[var(--text-secondary)]">
+              {r.email}
+              {r.error && (
+                <span className="ml-2 text-[11px] text-[var(--danger-400)]/80">{r.error.slice(0, 60)}</span>
+              )}
+            </span>
+            <span className="shrink-0 text-[var(--text-tertiary)]">{fmtAgo(r.startedAt)}</span>
+          </div>
         ))}
       </div>
     </div>
