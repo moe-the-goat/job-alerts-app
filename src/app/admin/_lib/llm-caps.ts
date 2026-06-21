@@ -27,15 +27,15 @@ export interface ModelCap {
 // Single-account published limits (from the providers' dashboards), then x2 for
 // the two-account providers so the gauges reflect real available headroom.
 export const MODEL_CAPS: Record<string, ModelCap> = {
-  // Cerebras — 2 accounts → caps doubled (single: 5 RPM / 2,400 RPD / 30K TPM / 1M TPD).
+  // Cerebras — 4 accounts → caps ×4 (single: 5 RPM / 2,400 RPD / 30K TPM / 1M TPD).
   "gpt-oss-120b": {
     provider: "Cerebras",
     label: "Cerebras gpt-oss-120b",
-    accounts: 2,
-    rpm: 10,
-    rpd: 4800,
-    tpm: 60000,
-    tpd: 2000000,
+    accounts: 4,
+    rpm: 20,
+    rpd: 9600,
+    tpm: 120000,
+    tpd: 4000000,
   },
   // Groq — 2 accounts → caps doubled (single: 30 RPM / 1,000 RPD / 12K TPM / 100K TPD).
   "llama-3.3-70b-versatile": {
@@ -47,23 +47,25 @@ export const MODEL_CAPS: Record<string, ModelCap> = {
     tpm: 24000,
     tpd: 200000,
   },
-  // Gemini — single account.
+  // Gemini Flash Lite — 2 accounts → caps ×2 (single: 15 RPM / 500 RPD / 250K TPM).
   "gemini-3.1-flash-lite": {
     provider: "Gemini",
     label: "Gemini 3.1 Flash Lite",
-    accounts: 1,
-    rpm: 15,
-    rpd: 500,
-    tpm: 250000,
+    accounts: 2,
+    rpm: 30,
+    rpd: 1000,
+    tpm: 500000,
     tpd: null,
   },
+  // Gemini Embedding 1 — 2 accounts → caps ×2 (single: 100 RPM / 1,000 RPD / 30K TPM).
+  // This RPD is the capacity bottleneck, so the 2nd account here matters most.
   "gemini-embedding-001": {
     provider: "Gemini",
     label: "Gemini Embedding 1 (CV/job rank)",
-    accounts: 1,
-    rpm: 100,
-    rpd: 1000,
-    tpm: 30000,
+    accounts: 2,
+    rpm: 200,
+    rpd: 2000,
+    tpm: 60000,
     tpd: null,
   },
   "gemini-embedding-2": {
