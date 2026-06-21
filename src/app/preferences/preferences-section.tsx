@@ -18,13 +18,39 @@ interface PreferencesSectionProps {
   initialEmail: string;
   initialFrequency: number;
   initialActive: boolean;
+  initialMinMatch: number;
   nextRunAt: string | null;
+}
+
+// Preset minimum-match floors for the email digest. 0 = send everything that
+// passed AI scoring; higher = quieter inbox, only the strongest matches.
+const MIN_MATCH_PRESETS: { value: number; label: string; hint: string }[] = [
+  { value: 0, label: "Off", hint: "All matches" },
+  { value: 50, label: "50%+", hint: "Light filter" },
+  { value: 65, label: "65%+", hint: "Balanced" },
+  { value: 80, label: "80%+", hint: "Top only" },
+];
+
+function nearestPreset(n: number): number {
+  // Snap an arbitrary stored value to the closest preset so the UI always
+  // reflects a chip even if the value was set elsewhere.
+  let best = MIN_MATCH_PRESETS[0].value;
+  let bestDist = Infinity;
+  for (const p of MIN_MATCH_PRESETS) {
+    const d = Math.abs(p.value - n);
+    if (d < bestDist) {
+      bestDist = d;
+      best = p.value;
+    }
+  }
+  return best;
 }
 
 export function PreferencesSection({
   initialEmail,
   initialFrequency,
   initialActive,
+  initialMinMatch,
   nextRunAt,
 }: PreferencesSectionProps) {
   const [state, action] = useActionState<PrefState | undefined, FormData>(
@@ -38,6 +64,7 @@ export function PreferencesSection({
 
   const [frequency, setFrequency] = useState<FrequencyHours>(safeInitialFreq);
   const [active, setActive] = useState(initialActive);
+  const [minMatch, setMinMatch] = useState<number>(nearestPreset(initialMinMatch));
 
   return (
     <section className="animate-fade-in-up" style={{ animationDelay: "60ms" }}>
@@ -77,6 +104,28 @@ export function PreferencesSection({
             ))}
           </div>
           <input type="hidden" name="frequency_hours" value={frequency} />
+        </div>
+
+        <div>
+          <div className="mb-1.5 text-sm font-medium text-[var(--text-primary)]">
+            Minimum match
+          </div>
+          <p className="mb-2 text-[11px] text-[var(--text-tertiary)]">
+            Only email jobs scoring at or above this. Quieter inbox, fewer
+            borderline matches. Your dashboard still shows everything.
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {MIN_MATCH_PRESETS.map((p) => (
+              <MinMatchCard
+                key={p.value}
+                label={p.label}
+                hint={p.hint}
+                selected={minMatch === p.value}
+                onSelect={() => setMinMatch(p.value)}
+              />
+            ))}
+          </div>
+          <input type="hidden" name="min_match_percentage" value={minMatch} />
         </div>
 
         <Switch
@@ -147,6 +196,43 @@ function FrequencyCard({
       <div className="mt-0.5 text-[11px] text-[var(--text-tertiary)]">
         {meta.hint}
       </div>
+    </button>
+  );
+}
+
+function MinMatchCard({
+  label,
+  hint,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  hint: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={[
+        "group flex flex-col items-start rounded-lg border px-3 py-3 text-left transition-all duration-150 outline-none",
+        "focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-base)]",
+        selected
+          ? "border-[var(--accent-500)]/60 bg-[var(--accent-500)]/10 ring-1 ring-[var(--accent-500)]/30"
+          : "border-[var(--border-muted)] bg-[var(--bg-elevated)]/60 hover:border-[var(--border-strong)] hover:bg-[var(--bg-overlay)]/80",
+      ].join(" ")}
+    >
+      <div
+        className={[
+          "text-[13.5px] font-medium",
+          selected ? "text-[var(--accent-300)]" : "text-[var(--text-primary)]",
+        ].join(" ")}
+      >
+        {label}
+      </div>
+      <div className="mt-0.5 text-[11px] text-[var(--text-tertiary)]">{hint}</div>
     </button>
   );
 }

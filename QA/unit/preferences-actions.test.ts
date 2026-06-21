@@ -105,8 +105,25 @@ describe("savePreferencesAction", () => {
       notification_email: "me@example.com",
       frequency_hours: 48,
       is_active: true,
+      min_match_percentage: 0, // absent in the form → defaults to 0 (no filter)
     });
     expect(opts).toEqual({ onConflict: "user_id" });
+  });
+
+  it("clamps and persists the min-match threshold", async () => {
+    wireAuthed("user-abc");
+    wireUpsertOk();
+    const fd = new FormData();
+    fd.append("notification_email", "me@example.com");
+    fd.append("frequency_hours", "24");
+    fd.append("is_active", "on");
+    fd.append("min_match_percentage", "150"); // out of range → clamped to 100
+
+    const res = await savePreferencesAction(undefined, fd);
+
+    expect(res.ok).toBe(true);
+    const [row] = upsertMock.mock.calls[0];
+    expect(row.min_match_percentage).toBe(100);
   });
 });
 

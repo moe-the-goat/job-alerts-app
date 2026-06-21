@@ -20,11 +20,12 @@ export default async function PreferencesPage() {
   if (!user) redirect("/login");
 
   const [prefsRes, searchesRes] = await Promise.all([
+    // select("*") (not an explicit column list) so a freshly-added column like
+    // min_match_percentage never errors the load before its migration is applied
+    // — missing columns simply read as undefined and fall back to the default.
     supabase
       .from("preferences")
-      .select(
-        "notification_email, frequency_hours, is_active, next_run_at",
-      )
+      .select("*")
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase
@@ -41,6 +42,7 @@ export default async function PreferencesPage() {
     frequency_hours: 24,
     is_active: true,
     next_run_at: null,
+    min_match_percentage: 0,
   };
   const searches: SearchRow[] = (searchesRes.data ?? []) as SearchRow[];
 
@@ -68,6 +70,7 @@ export default async function PreferencesPage() {
           initialEmail={prefs.notification_email}
           initialFrequency={prefs.frequency_hours}
           initialActive={prefs.is_active}
+          initialMinMatch={prefs.min_match_percentage ?? 0}
           nextRunAt={prefs.next_run_at}
         />
 

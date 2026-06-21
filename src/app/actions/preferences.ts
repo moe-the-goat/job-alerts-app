@@ -49,6 +49,8 @@ export async function savePreferencesAction(
   const email = String(formData.get("notification_email") ?? "").trim().toLowerCase();
   const freq = Number(formData.get("frequency_hours") ?? 24);
   const isActive = parseBool(formData.get("is_active"));
+  // Min-match digest threshold: only email jobs scoring at/above this (0 = off).
+  const minMatch = clamp(Number(formData.get("min_match_percentage") ?? 0), 0, 100);
 
   if (!EMAIL_RE.test(email)) {
     return { ok: false, error: "Please enter a valid email address." };
@@ -71,6 +73,7 @@ export async function savePreferencesAction(
       notification_email: email,
       frequency_hours: freq,
       is_active: isActive,
+      min_match_percentage: minMatch,
     },
     { onConflict: "user_id" },
   );
