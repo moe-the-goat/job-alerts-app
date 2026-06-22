@@ -84,6 +84,41 @@ export async function savePreferencesAction(
   return { ok: true, message: "Saved." };
 }
 
+// Max length of the user's steering note. Long enough for a few sentences of
+// guidance, short enough to keep the prompt lean.
+const MAX_NOTE_LENGTH = 1000;
+
+/**
+ * Save the user's free-text steering note (feedback-loop UI). The worker folds
+ * it into every job verdict. Independent of the delivery prefs above so it can
+ * be saved on its own. Empty → cleared.
+ */
+export async function savePreferenceNoteAction(
+  _prev: PrefState | undefined,
+  formData: FormData,
+): Promise<PrefState> {
+  const note = String(formData.get("preference_note") ?? "").trim().slice(0, MAX_NOTE_LENGTH);
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "Your session has expired. Please sign in again." };
+  }
+
+  // UPDATE (not upsert): the preferences row already exists from onboarding, and
+  // we don't have the other NOT-NULL columns here to safely insert a new one.
+  const { error } = await supabase
+    .from("preferences")
+    .update({ preference_note: note || null })
+    .eq("user_id", user.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/preferences");
+  return { ok: true, message: note ? "Note saved." : "Note cleared." };
+}
+
 export type UpsertSearchInput = {
   id?: number;
   search_term: string;

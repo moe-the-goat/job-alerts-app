@@ -28,6 +28,7 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import {
   deleteSearchAction,
+  savePreferenceNoteAction,
   savePreferencesAction,
   toggleSearchAction,
   upsertSearchAction,
@@ -224,6 +225,48 @@ describe("upsertSearchAction", () => {
     expect(row.country_indeed).toBe("USA");
     expect(row.results_wanted).toBe(30);
     expect(row.hours_old).toBe(24);
+  });
+});
+
+describe("savePreferenceNoteAction", () => {
+  it("rejects when session is missing", async () => {
+    getUserMock.mockResolvedValue({ data: { user: null } });
+    const fd = new FormData();
+    fd.append("preference_note", "remote only");
+    const res = await savePreferenceNoteAction(undefined, fd);
+    expect(res.ok).toBe(false);
+  });
+
+  it("updates the note scoped to the user (defense in depth on RLS)", async () => {
+    wireAuthed("user-abc");
+    eqMock1.mockResolvedValue({ error: null });
+    updateMock.mockReturnValue({ eq: eqMock1 });
+    fromMock.mockReturnValue({ update: updateMock });
+
+    const fd = new FormData();
+    fd.append("preference_note", "  Prioritize internships, no crypto  ");
+    const res = await savePreferenceNoteAction(undefined, fd);
+
+    expect(res.ok).toBe(true);
+    expect(fromMock).toHaveBeenCalledWith("preferences");
+    expect(updateMock).toHaveBeenCalledWith({
+      preference_note: "Prioritize internships, no crypto", // trimmed
+    });
+    expect(eqMock1).toHaveBeenCalledWith("user_id", "user-abc");
+  });
+
+  it("stores null when the note is cleared", async () => {
+    wireAuthed("user-abc");
+    eqMock1.mockResolvedValue({ error: null });
+    updateMock.mockReturnValue({ eq: eqMock1 });
+    fromMock.mockReturnValue({ update: updateMock });
+
+    const fd = new FormData();
+    fd.append("preference_note", "   ");
+    const res = await savePreferenceNoteAction(undefined, fd);
+
+    expect(res.ok).toBe(true);
+    expect(updateMock).toHaveBeenCalledWith({ preference_note: null });
   });
 });
 

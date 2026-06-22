@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/app-shell";
 import { PreferencesSection } from "./preferences-section";
 import { SearchesSection } from "./searches-section";
+import { AiLearningSection } from "./ai-learning-section";
 import type { SearchRow } from "./types";
 
 export const metadata: Metadata = {
@@ -43,6 +44,8 @@ export default async function PreferencesPage() {
     is_active: true,
     next_run_at: null,
     min_match_percentage: 0,
+    candidate_preferences: "",
+    preference_note: "",
   };
   const searches: SearchRow[] = (searchesRes.data ?? []) as SearchRow[];
 
@@ -75,6 +78,11 @@ export default async function PreferencesPage() {
         />
 
         <SearchesSection initialSearches={searches} />
+
+        <AiLearningSection
+          learnedSummary={prefs.candidate_preferences ?? ""}
+          initialNote={prefs.preference_note ?? ""}
+        />
       </div>
     </AppShell>
   );
