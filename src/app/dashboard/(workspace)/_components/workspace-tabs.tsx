@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Inbox, KanbanSquare } from "lucide-react";
+import { Inbox, KanbanSquare, LineChart } from "lucide-react";
 
 const TABS = [
   { href: "/dashboard/feedback", label: "Feedback", icon: Inbox },
   { href: "/dashboard/tracker", label: "Tracker", icon: KanbanSquare },
+  { href: "/dashboard/insights", label: "Insights", icon: LineChart },
 ] as const;
 
 export function WorkspaceTabs() {
