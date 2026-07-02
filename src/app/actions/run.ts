@@ -261,3 +261,26 @@ export async function rescheduleRunAction(
   revalidatePath("/preferences");
   return { ok: true, message: "Next run rescheduled." };
 }
+
+/**
+ * Aggregate, privacy-safe count of active users scheduled per hour-of-day
+ * (Asia/Jerusalem), for the reschedule congestion hint. Returns a { hour: count }
+ * map. Degrades to {} (no hint shown) if the RPC isn't present yet — so the
+ * reschedule dialog keeps working before migration 0024 is applied.
+ */
+export async function getScheduleSlotCountsAction(): Promise<{
+  ok: boolean;
+  counts: Record<number, number>;
+}> {
+  const { supabase, user } = await authedClient();
+  if (!user) return { ok: false, counts: {} };
+  const { data, error } = await supabase.rpc("schedule_slot_counts");
+  if (error || !Array.isArray(data)) return { ok: true, counts: {} };
+  const counts: Record<number, number> = {};
+  for (const row of data as { slot_hour: number; user_count: number }[]) {
+    if (typeof row?.slot_hour === "number") {
+      counts[row.slot_hour] = Number(row.user_count) || 0;
+    }
+  }
+  return { ok: true, counts };
+}

@@ -1,9 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, Loader2, Play, X } from "lucide-react";
-import { triggerManualRunAction, rescheduleRunAction } from "@/app/actions/run";
+import { CalendarClock, Clock, Loader2, Play, X } from "lucide-react";
+import {
+  triggerManualRunAction,
+  rescheduleRunAction,
+  getScheduleSlotCountsAction,
+} from "@/app/actions/run";
+import {
+  congestionLevel,
+  estimatedDelayMinutes,
+  formatHour,
+  suggestClearHour,
+} from "@/app/dashboard/_lib/schedule-congestion";
 
 // Rough wall-clock for one full run, shown to the user so "Run now" sets
 // honest expectations. Matches observed multi-user runs (~38 min).
@@ -221,6 +231,58 @@ function RunNowDialog({
   );
 }
 
+// Congestion hint under the reschedule time picker: how many users already run
+// at the chosen hour, an honest delay caveat when it's busy, and a nudge to the
+// nearest clearer hour (advice, never an automatic move).
+function SlotHint({
+  counts,
+  hour,
+  onPick,
+}: {
+  counts: Record<number, number> | null;
+  hour: number | null;
+  onPick: (hour: number) => void;
+}) {
+  if (!counts || hour === null || !Number.isInteger(hour)) return null;
+  const count = counts[hour] ?? 0;
+  const level = congestionLevel(count);
+
+  if (level === "busy") {
+    const mins = estimatedDelayMinutes(count);
+    const suggestion = suggestClearHour(counts, hour);
+    return (
+      <div className="flex items-start gap-1.5 rounded-lg border border-[var(--warning-400)]/30 bg-[var(--warning-400)]/10 px-3 py-2.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
+        <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--warning-400)]" />
+        <span>
+          <span className="font-medium text-[var(--text-primary)]">
+            {count} users
+          </span>{" "}
+          already run around {formatHour(hour)} — your email may arrive up to ~
+          {mins} min later.
+          {suggestion !== null && (
+            <>
+              {" "}
+              <button
+                type="button"
+                onClick={() => onPick(suggestion)}
+                className="rounded-sm font-medium text-[var(--accent-400)] underline underline-offset-2 outline-none hover:text-[var(--accent-300)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+              >
+                Try {formatHour(suggestion)} — clearer
+              </button>
+            </>
+          )}
+        </span>
+      </div>
+    );
+  }
+
+  const label =
+    level === "some"
+      ? `${count} other ${count === 1 ? "user runs" : "users run"} around ${formatHour(hour)}.`
+      : `${formatHour(hour)} is clear — no queue.`;
+  return <p className="text-[11.5px] text-[var(--text-tertiary)]">{label}</p>;
+}
+
 // Format an ISO instant into the value a datetime-local input expects
 // (YYYY-MM-DDTHH:mm in LOCAL time). Returns "" when there's nothing to seed.
 function toLocalInputValue(iso: string | null): string {
@@ -244,6 +306,29 @@ function RescheduleDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [value, setValue] = useState(() => toLocalInputValue(nextRunAt));
+  // Per-hour scheduled-user counts for the congestion hint (loaded on open).
+  const [slotCounts, setSlotCounts] = useState<Record<number, number> | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getScheduleSlotCountsAction().then((res) => {
+      if (alive) setSlotCounts(res.counts ?? {});
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // The selected local hour (users are Palestine-based, so local == the
+  // Jerusalem slot the counts are keyed by). null until a time is picked.
+  const selectedHour =
+    value.length >= 13 ? Number.parseInt(value.slice(11, 13), 10) : NaN;
+  const hasHour = Number.isInteger(selectedHour);
+
+  function moveToHour(hour: number) {
+    // Keep the chosen date, snap to the top of the suggested hour.
+    setValue(`${value.slice(0, 11)}${String(hour).padStart(2, "0")}:00`);
+  }
 
   function save() {
     setError(null);
@@ -285,6 +370,12 @@ function RescheduleDialog({
             className="w-full rounded-md border border-[var(--border-muted)] bg-[var(--bg-overlay)] px-2.5 py-1.5 text-[13px] text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] [color-scheme:dark]"
           />
         </label>
+
+        <SlotHint
+          counts={slotCounts}
+          hour={hasHour ? selectedHour : null}
+          onPick={moveToHour}
+        />
 
         {error && (
           <p className="rounded-md border border-[var(--border-muted)] px-3 py-2 text-[12.5px] text-[var(--danger-400)]">
