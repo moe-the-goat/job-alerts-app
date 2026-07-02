@@ -6,9 +6,11 @@ import { createClient } from "@/lib/supabase/server";
 // async Server Actions, so constants imported from here by client components
 // would otherwise become action references (see constants.ts).
 import {
+  EXPERIENCE_LEVELS,
   FREQUENCY_HOURS,
   JOB_BOARDS,
   JOB_TYPES,
+  type ExperienceLevel,
   type FrequencyHours,
   type JobBoard,
   type JobType,
@@ -51,6 +53,13 @@ export async function savePreferencesAction(
   const isActive = parseBool(formData.get("is_active"));
   // Min-match digest threshold: only email jobs scoring at/above this (0 = off).
   const minMatch = clamp(Number(formData.get("min_match_percentage") ?? 0), 0, 100);
+  // Target seniority — anything outside the allowlist falls back to "entry".
+  const rawLevel = String(formData.get("experience_level") ?? "entry");
+  const experienceLevel: ExperienceLevel = EXPERIENCE_LEVELS.includes(
+    rawLevel as ExperienceLevel,
+  )
+    ? (rawLevel as ExperienceLevel)
+    : "entry";
 
   if (!EMAIL_RE.test(email)) {
     return { ok: false, error: "Please enter a valid email address." };
@@ -67,16 +76,25 @@ export async function savePreferencesAction(
     return { ok: false, error: "Your session has expired. Please sign in again." };
   }
 
-  const { error } = await supabase.from("preferences").upsert(
-    {
-      user_id: user.id,
-      notification_email: email,
-      frequency_hours: freq,
-      is_active: isActive,
-      min_match_percentage: minMatch,
-    },
+  const baseRow = {
+    user_id: user.id,
+    notification_email: email,
+    frequency_hours: freq,
+    is_active: isActive,
+    min_match_percentage: minMatch,
+  };
+  let { error } = await supabase.from("preferences").upsert(
+    { ...baseRow, experience_level: experienceLevel },
     { onConflict: "user_id" },
   );
+  // Deploy-order safety: if experience_level isn't in the live schema yet
+  // (migration 0023 not applied), retry without it so saving still works —
+  // the worker likewise treats a missing column as the 'entry' default.
+  if (error && /experience_level/i.test(error.message)) {
+    ({ error } = await supabase
+      .from("preferences")
+      .upsert(baseRow, { onConflict: "user_id" }));
+  }
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/preferences");

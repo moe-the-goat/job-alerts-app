@@ -18,6 +18,12 @@ export type PrefState = {
 export const FREQUENCY_HOURS = [1, 24, 48, 168] as const;
 export type FrequencyHours = (typeof FREQUENCY_HOURS)[number];
 
+// Target seniority the user is aiming for. Drives the worker's per-user
+// seniority filters (an entry-level user has senior roles filtered out; a
+// mid/senior user keeps them) and the AI verdict prompt. Default "entry".
+export const EXPERIENCE_LEVELS = ["entry", "mid", "senior"] as const;
+export type ExperienceLevel = (typeof EXPERIENCE_LEVELS)[number];
+
 export const JOB_BOARDS = [
   "linkedin",
   "indeed",

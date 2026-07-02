@@ -5,7 +5,9 @@ import { useFormStatus } from "react-dom";
 import { AlertCircle, CheckCircle2, Mail, Save } from "lucide-react";
 import { savePreferencesAction } from "@/app/actions/preferences";
 import {
+  EXPERIENCE_LEVELS,
   FREQUENCY_HOURS,
+  type ExperienceLevel,
   type FrequencyHours,
   type PrefState,
 } from "./constants";
@@ -19,8 +21,17 @@ interface PreferencesSectionProps {
   initialFrequency: number;
   initialActive: boolean;
   initialMinMatch: number;
+  initialExperienceLevel: string;
   nextRunAt: string | null;
 }
+
+// Target seniority the user is aiming for. Entry keeps the aggressive junior
+// filter; mid/senior let senior roles through for the AI to score.
+const EXPERIENCE_PRESETS: { value: ExperienceLevel; label: string; hint: string }[] = [
+  { value: "entry", label: "Entry", hint: "Intern / junior" },
+  { value: "mid", label: "Mid", hint: "2–5 years" },
+  { value: "senior", label: "Senior", hint: "5+ / lead" },
+];
 
 // Preset minimum-match floors for the email digest. 0 = send everything that
 // passed AI scoring; higher = quieter inbox, only the strongest matches.
@@ -51,6 +62,7 @@ export function PreferencesSection({
   initialFrequency,
   initialActive,
   initialMinMatch,
+  initialExperienceLevel,
   nextRunAt,
 }: PreferencesSectionProps) {
   const [state, action] = useActionState<PrefState | undefined, FormData>(
@@ -61,10 +73,16 @@ export function PreferencesSection({
   const safeInitialFreq = FREQUENCY_HOURS.includes(initialFrequency as FrequencyHours)
     ? (initialFrequency as FrequencyHours)
     : 24;
+  const safeInitialLevel = EXPERIENCE_LEVELS.includes(
+    initialExperienceLevel as ExperienceLevel,
+  )
+    ? (initialExperienceLevel as ExperienceLevel)
+    : "entry";
 
   const [frequency, setFrequency] = useState<FrequencyHours>(safeInitialFreq);
   const [active, setActive] = useState(initialActive);
   const [minMatch, setMinMatch] = useState<number>(nearestPreset(initialMinMatch));
+  const [level, setLevel] = useState<ExperienceLevel>(safeInitialLevel);
 
   return (
     <section className="animate-fade-in-up" style={{ animationDelay: "60ms" }}>
@@ -126,6 +144,28 @@ export function PreferencesSection({
             ))}
           </div>
           <input type="hidden" name="min_match_percentage" value={minMatch} />
+        </div>
+
+        <div>
+          <div className="mb-1.5 text-sm font-medium text-[var(--text-primary)]">
+            Experience level
+          </div>
+          <p className="mb-2 text-[11px] text-[var(--text-tertiary)]">
+            The seniority you&apos;re targeting. Entry keeps senior roles out; mid
+            or senior let them through and score them against your CV.
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {EXPERIENCE_PRESETS.map((p) => (
+              <MinMatchCard
+                key={p.value}
+                label={p.label}
+                hint={p.hint}
+                selected={level === p.value}
+                onSelect={() => setLevel(p.value)}
+              />
+            ))}
+          </div>
+          <input type="hidden" name="experience_level" value={level} />
         </div>
 
         <Switch
