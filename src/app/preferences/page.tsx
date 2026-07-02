@@ -44,6 +44,7 @@ export default async function PreferencesPage() {
     is_active: true,
     next_run_at: null,
     min_match_percentage: 0,
+    experience_level: "entry",
     candidate_preferences: "",
     preference_note: "",
   };
@@ -74,6 +75,7 @@ export default async function PreferencesPage() {
           initialFrequency={prefs.frequency_hours}
           initialActive={prefs.is_active}
           initialMinMatch={prefs.min_match_percentage ?? 0}
+          initialExperienceLevel={prefs.experience_level ?? "entry"}
           nextRunAt={prefs.next_run_at}
         />
 

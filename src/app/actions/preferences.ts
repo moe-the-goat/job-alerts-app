@@ -6,9 +6,11 @@ import { createClient } from "@/lib/supabase/server";
 // async Server Actions, so constants imported from here by client components
 // would otherwise become action references (see constants.ts).
 import {
+  EXPERIENCE_LEVELS,
   FREQUENCY_HOURS,
   JOB_BOARDS,
   JOB_TYPES,
+  type ExperienceLevel,
   type FrequencyHours,
   type JobBoard,
   type JobType,
@@ -51,6 +53,13 @@ export async function savePreferencesAction(
   const isActive = parseBool(formData.get("is_active"));
   // Min-match digest threshold: only email jobs scoring at/above this (0 = off).
   const minMatch = clamp(Number(formData.get("min_match_percentage") ?? 0), 0, 100);
+  // Target seniority — anything outside the allowlist falls back to "entry".
+  const rawLevel = String(formData.get("experience_level") ?? "entry");
+  const experienceLevel: ExperienceLevel = EXPERIENCE_LEVELS.includes(
+    rawLevel as ExperienceLevel,
+  )
+    ? (rawLevel as ExperienceLevel)
+    : "entry";
 
   if (!EMAIL_RE.test(email)) {
     return { ok: false, error: "Please enter a valid email address." };
@@ -74,6 +83,7 @@ export async function savePreferencesAction(
       frequency_hours: freq,
       is_active: isActive,
       min_match_percentage: minMatch,
+      experience_level: experienceLevel,
     },
     { onConflict: "user_id" },
   );

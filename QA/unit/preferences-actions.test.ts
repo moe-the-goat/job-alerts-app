@@ -107,6 +107,7 @@ describe("savePreferencesAction", () => {
       frequency_hours: 48,
       is_active: true,
       min_match_percentage: 0, // absent in the form → defaults to 0 (no filter)
+      experience_level: "entry", // absent in the form → defaults to entry
     });
     expect(opts).toEqual({ onConflict: "user_id" });
   });
@@ -125,6 +126,36 @@ describe("savePreferencesAction", () => {
     expect(res.ok).toBe(true);
     const [row] = upsertMock.mock.calls[0];
     expect(row.min_match_percentage).toBe(100);
+  });
+
+  it("persists a valid experience level", async () => {
+    wireAuthed("user-abc");
+    wireUpsertOk();
+    const fd = new FormData();
+    fd.append("notification_email", "me@example.com");
+    fd.append("frequency_hours", "24");
+    fd.append("is_active", "on");
+    fd.append("experience_level", "senior");
+
+    const res = await savePreferencesAction(undefined, fd);
+
+    expect(res.ok).toBe(true);
+    expect(upsertMock.mock.calls[0][0].experience_level).toBe("senior");
+  });
+
+  it("falls back to entry for an out-of-allowlist experience level", async () => {
+    wireAuthed("user-abc");
+    wireUpsertOk();
+    const fd = new FormData();
+    fd.append("notification_email", "me@example.com");
+    fd.append("frequency_hours", "24");
+    fd.append("is_active", "on");
+    fd.append("experience_level", "principal-overlord"); // not allowed
+
+    const res = await savePreferencesAction(undefined, fd);
+
+    expect(res.ok).toBe(true);
+    expect(upsertMock.mock.calls[0][0].experience_level).toBe("entry");
   });
 });
 
