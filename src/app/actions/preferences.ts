@@ -76,17 +76,25 @@ export async function savePreferencesAction(
     return { ok: false, error: "Your session has expired. Please sign in again." };
   }
 
-  const { error } = await supabase.from("preferences").upsert(
-    {
-      user_id: user.id,
-      notification_email: email,
-      frequency_hours: freq,
-      is_active: isActive,
-      min_match_percentage: minMatch,
-      experience_level: experienceLevel,
-    },
+  const baseRow = {
+    user_id: user.id,
+    notification_email: email,
+    frequency_hours: freq,
+    is_active: isActive,
+    min_match_percentage: minMatch,
+  };
+  let { error } = await supabase.from("preferences").upsert(
+    { ...baseRow, experience_level: experienceLevel },
     { onConflict: "user_id" },
   );
+  // Deploy-order safety: if experience_level isn't in the live schema yet
+  // (migration 0023 not applied), retry without it so saving still works —
+  // the worker likewise treats a missing column as the 'entry' default.
+  if (error && /experience_level/i.test(error.message)) {
+    ({ error } = await supabase
+      .from("preferences")
+      .upsert(baseRow, { onConflict: "user_id" }));
+  }
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/preferences");
