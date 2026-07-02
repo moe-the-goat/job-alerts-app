@@ -15,15 +15,19 @@ vi.mock("next/navigation", () => ({
 
 const triggerMock = vi.fn();
 const rescheduleMock = vi.fn();
+const slotCountsMock = vi.fn();
 vi.mock("@/app/actions/run", () => ({
   triggerManualRunAction: () => triggerMock(),
   rescheduleRunAction: (fd: FormData) => rescheduleMock(fd),
+  getScheduleSlotCountsAction: () => slotCountsMock(),
 }));
 
 beforeEach(() => {
   refresh.mockReset();
   triggerMock.mockReset();
   rescheduleMock.mockReset();
+  slotCountsMock.mockReset();
+  slotCountsMock.mockResolvedValue({ ok: true, counts: {} });
 });
 
 function renderControls(over: Partial<React.ComponentProps<typeof RunControls>> = {}) {
@@ -100,5 +104,21 @@ describe("<RunControls />", () => {
     await waitFor(() => expect(rescheduleMock).toHaveBeenCalledTimes(1));
     const fd = rescheduleMock.mock.calls[0][0] as FormData;
     expect(typeof fd.get("next_run_at")).toBe("string");
+  });
+
+  it("warns and offers a clearer hour when the chosen slot is busy", async () => {
+    slotCountsMock.mockResolvedValue({ ok: true, counts: { 9: 5, 8: 0 } });
+    renderControls();
+    fireEvent.click(screen.getByRole("button", { name: /Reschedule run/ }));
+    const dialog = screen.getByRole("dialog", { name: "Reschedule next run" });
+    const input = within(dialog).getByLabelText(/Next run/i);
+    fireEvent.change(input, { target: { value: "2026-12-01T09:00" } });
+    // The busy caution + a "Try …— clearer" nudge appear once counts load.
+    await waitFor(() =>
+      expect(within(dialog).getByText(/may arrive up to/i)).toBeInTheDocument(),
+    );
+    expect(
+      within(dialog).getByRole("button", { name: /clearer/i }),
+    ).toBeInTheDocument();
   });
 });
