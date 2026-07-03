@@ -46,6 +46,44 @@ export const CAREER_PATHS = [
 export type CareerPathSlug = (typeof CAREER_PATHS)[number]["slug"];
 export const CAREER_PATH_SLUGS: readonly string[] = CAREER_PATHS.map((p) => p.slug);
 
+// Curated search terms each path seeds (Tier 5c). Short on purpose — a handful
+// of strong queries per path beats dozens of near-duplicates that just multiply
+// scraping + embedding cost (see the cost analysis). The seeded set is deduped
+// and capped at MAX_AUTO_SEARCHES total.
+export const PATH_SEARCH_TERMS: Record<string, string[]> = {
+  backend: ["Backend Developer", "Backend Engineer"],
+  frontend: ["Frontend Developer", "React Developer"],
+  fullstack: ["Full Stack Developer", "Full Stack Engineer"],
+  mobile: ["Mobile Developer", "Android Developer", "iOS Developer"],
+  ai_ml: ["Machine Learning Engineer", "AI Engineer"],
+  data_science: ["Data Scientist"],
+  data_analysis: ["Data Analyst"],
+  data_engineering: ["Data Engineer"],
+  devops: ["DevOps Engineer", "Site Reliability Engineer"],
+  qa: ["QA Engineer", "Test Automation Engineer"],
+  security: ["Security Engineer"],
+  embedded: ["Embedded Software Engineer"],
+  game: ["Game Developer"],
+};
+export const MAX_AUTO_SEARCHES = 6;
+
+/** Deduped, capped list of search terms for the chosen paths (Tier 5c seeding).
+ *  Curated over exhaustive — dedupe shared terms, cap the total. */
+export function selectAutoSearchTerms(paths: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const slug of paths) {
+    for (const term of PATH_SEARCH_TERMS[slug] ?? []) {
+      const key = term.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(term);
+      }
+    }
+  }
+  return out.slice(0, MAX_AUTO_SEARCHES);
+}
+
 export const JOB_BOARDS = [
   "linkedin",
   "indeed",
