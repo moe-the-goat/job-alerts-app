@@ -11,12 +11,15 @@ import {
   FREQUENCY_HOURS,
   JOB_BOARDS,
   JOB_TYPES,
+  selectAutoSearchTerms,
   type ExperienceLevel,
   type FrequencyHours,
   type JobBoard,
   type JobType,
   type PrefState,
 } from "@/app/preferences/constants";
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -155,6 +158,53 @@ function parsePaths(raw: FormDataEntryValue | null): string[] {
   return out;
 }
 
+// Curated auto-search rows for the chosen paths — deduped across paths and
+// capped at MAX_AUTO_SEARCHES (curated, not "the biggest number"). Sensible
+// worldwide-remote defaults; the user can tweak or delete any of them.
+function buildAutoSearchRows(userId: string, paths: string[]): Record<string, unknown>[] {
+  return selectAutoSearchTerms(paths).map((term) => ({
+    user_id: userId,
+    search_term: term,
+    location: "Worldwide",
+    sites: ["linkedin", "indeed"],
+    job_type: null,
+    is_remote: true,
+    results_wanted: 30,
+    hours_old: 72,
+    country_indeed: "USA",
+    is_active: true,
+    origin: "auto",
+  }));
+}
+
+// Replace the user's AUTO searches with a fresh set from their paths, leaving
+// MANUAL searches untouched ("auto-suggest, never auto-destroy"). Returns the
+// count created, or null when the `origin` column isn't in the schema yet
+// (migration 0026 not applied) so callers can degrade quietly.
+async function regenerateAutoSearches(
+  supabase: SupabaseServerClient,
+  userId: string,
+  paths: string[],
+): Promise<number | null> {
+  const del = await supabase
+    .from("search_queries")
+    .delete()
+    .eq("user_id", userId)
+    .eq("origin", "auto");
+  if (del.error) {
+    if (/origin/i.test(del.error.message)) return null; // column missing → feature off
+    throw new Error(del.error.message);
+  }
+  const rows = buildAutoSearchRows(userId, paths);
+  if (rows.length === 0) return 0;
+  const ins = await supabase.from("search_queries").insert(rows);
+  if (ins.error) {
+    if (/origin/i.test(ins.error.message)) return null;
+    throw new Error(ins.error.message);
+  }
+  return rows.length;
+}
+
 export async function savePathsAction(
   _prev: PrefState | undefined,
   formData: FormData,
@@ -177,13 +227,86 @@ export async function savePathsAction(
     .eq("user_id", user.id);
   if (error) return { ok: false, error: error.message };
 
+  // One-time auto-seed: the FIRST time a user picks paths, generate a starter
+  // set of searches from them (gated by searches_seeded so re-saving paths never
+  // recreates them — after this, regeneration is a deliberate button press).
+  let seeded = 0;
+  if (paths.length > 0) {
+    const { data: prefRow, error: prefErr } = await supabase
+      .from("preferences")
+      .select("searches_seeded")
+      .eq("user_id", user.id)
+      .maybeSingle<{ searches_seeded: boolean | null }>();
+    if (!prefErr && prefRow && !prefRow.searches_seeded) {
+      try {
+        const n = await regenerateAutoSearches(supabase, user.id, paths);
+        if (n && n > 0) {
+          seeded = n;
+          await supabase
+            .from("preferences")
+            .update({ searches_seeded: true })
+            .eq("user_id", user.id);
+        }
+      } catch {
+        // Best-effort — a seeding hiccup must never fail the paths save itself.
+      }
+    }
+  }
+
+  revalidatePath("/preferences");
+  revalidatePath("/dashboard");
+  const base = paths.length
+    ? `Saved ${paths.length} path${paths.length === 1 ? "" : "s"}.`
+    : "Paths cleared.";
+  return {
+    ok: true,
+    message: seeded > 0 ? `${base} Created ${seeded} searches — review them below.` : base,
+  };
+}
+
+/**
+ * "Regenerate from paths" button: rebuild the auto searches from the user's
+ * current paths, keeping every manual search intact. Explicit action (not gated
+ * by searches_seeded) so the user can refresh after changing paths.
+ */
+export async function regenerateSearchesFromPathsAction(): Promise<PrefState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "Your session has expired. Please sign in again." };
+  }
+
+  const { data: prefRow } = await supabase
+    .from("preferences")
+    .select("paths")
+    .eq("user_id", user.id)
+    .maybeSingle<{ paths: string[] | null }>();
+  const paths = (prefRow?.paths ?? []).filter((p) => CAREER_PATH_SLUGS.includes(p));
+  if (paths.length === 0) {
+    return { ok: false, error: "Pick at least one career path first." };
+  }
+
+  let n: number | null;
+  try {
+    n = await regenerateAutoSearches(supabase, user.id, paths);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't regenerate searches." };
+  }
+  if (n === null) {
+    return { ok: false, error: "Search generation isn't available yet — apply the latest update." };
+  }
+  await supabase
+    .from("preferences")
+    .update({ searches_seeded: true })
+    .eq("user_id", user.id);
+
   revalidatePath("/preferences");
   revalidatePath("/dashboard");
   return {
     ok: true,
-    message: paths.length
-      ? `Saved ${paths.length} path${paths.length === 1 ? "" : "s"}.`
-      : "Paths cleared.",
+    message: `Regenerated ${n} search${n === 1 ? "" : "es"} from your paths — your own searches were kept.`,
   };
 }
 
@@ -235,6 +358,8 @@ export async function upsertSearchAction(
     return { ok: false, error: "Your session has expired. Please sign in again." };
   }
 
+  // Anything the user adds OR edits by hand is tagged 'manual' so the
+  // "Regenerate from paths" action never clobbers it (auto rows are 'auto').
   const row = {
     user_id: user.id,
     search_term: searchTerm,
@@ -246,17 +371,31 @@ export async function upsertSearchAction(
     hours_old: hoursOld,
     country_indeed: countryIndeed,
     is_active: isActive,
+    origin: "manual",
   };
+  // Deploy-order safety: retry without `origin` if migration 0026 isn't applied.
+  const rowNoOrigin = { ...row };
+  delete (rowNoOrigin as Record<string, unknown>).origin;
 
   if (id) {
-    const { error } = await supabase
+    let { error } = await supabase
       .from("search_queries")
       .update(row)
       .eq("id", id)
       .eq("user_id", user.id);
+    if (error && /origin/i.test(error.message)) {
+      ({ error } = await supabase
+        .from("search_queries")
+        .update(rowNoOrigin)
+        .eq("id", id)
+        .eq("user_id", user.id));
+    }
     if (error) return { ok: false, error: error.message };
   } else {
-    const { error } = await supabase.from("search_queries").insert(row);
+    let { error } = await supabase.from("search_queries").insert(row);
+    if (error && /origin/i.test(error.message)) {
+      ({ error } = await supabase.from("search_queries").insert(rowNoOrigin));
+    }
     if (error) return { ok: false, error: error.message };
   }
 

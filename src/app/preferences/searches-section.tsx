@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Search as SearchIcon } from "lucide-react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, RefreshCw, Search as SearchIcon } from "lucide-react";
+import { regenerateSearchesFromPathsAction } from "@/app/actions/preferences";
 import { SectionHeading } from "./section-heading";
 import { SearchCard } from "./search-card";
 import type { SearchRow } from "./types";
@@ -11,16 +13,54 @@ interface SearchesSectionProps {
 }
 
 export function SearchesSection({ initialSearches }: SearchesSectionProps) {
+  const router = useRouter();
   const [adding, setAdding] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [regenMsg, setRegenMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const hasNone = initialSearches.length === 0;
+
+  function regenerate() {
+    setRegenMsg(null);
+    startTransition(async () => {
+      const res = await regenerateSearchesFromPathsAction();
+      setRegenMsg({
+        ok: res.ok,
+        text: res.ok ? (res.message ?? "Done.") : (res.error ?? "Couldn't regenerate."),
+      });
+      if (res.ok) router.refresh();
+    });
+  }
 
   return (
     <section className="animate-fade-in-up" style={{ animationDelay: "120ms" }}>
       <SectionHeading
         step="3"
         title="Searches"
-        subtitle="Each search is one query we send to the job boards. Add as many as you like."
+        subtitle="Each search is one query we send to the job boards. We seed a starter set from your paths — add, edit, or delete any of them."
       />
+
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-[11.5px] leading-relaxed text-[var(--text-tertiary)]">
+          Regenerate rebuilds the path-suggested searches and keeps the ones you
+          added yourself.
+        </p>
+        <button
+          type="button"
+          onClick={regenerate}
+          disabled={isPending}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--border-muted)] px-2.5 py-1.5 text-[12px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-overlay)] hover:text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isPending ? "animate-spin" : ""}`} />
+          Regenerate from paths
+        </button>
+      </div>
+      {regenMsg && (
+        <p
+          className={`mb-3 text-xs ${regenMsg.ok ? "text-[var(--success-400)]" : "text-[var(--danger-400)]"}`}
+        >
+          {regenMsg.text}
+        </p>
+      )}
 
       {hasNone && !adding && (
         <EmptyState onAdd={() => setAdding(true)} />

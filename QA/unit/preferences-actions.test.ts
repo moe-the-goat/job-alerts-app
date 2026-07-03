@@ -258,6 +258,17 @@ describe("upsertSearchAction", () => {
     expect(row.results_wanted).toBe(30);
     expect(row.hours_old).toBe(24);
   });
+
+  it("tags a hand-added search origin=manual so Regenerate never clobbers it", async () => {
+    wireAuthed("user-abc");
+    wireInsertOk();
+    const fd = new FormData();
+    fd.append("search_term", "Backend Engineer");
+    fd.append("sites", "linkedin");
+    const res = await upsertSearchAction(undefined, fd);
+    expect(res.ok).toBe(true);
+    expect(insertMock.mock.calls[0][0]).toMatchObject({ origin: "manual" });
+  });
 });
 
 describe("savePreferenceNoteAction", () => {
@@ -315,7 +326,13 @@ describe("savePathsAction", () => {
     wireAuthed("user-abc");
     eqMock1.mockResolvedValue({ error: null });
     updateMock.mockReturnValue({ eq: eqMock1 });
-    fromMock.mockReturnValue({ update: updateMock });
+    // savePathsAction also checks searches_seeded (already seeded → no seeding).
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValue({ data: { searches_seeded: true }, error: null });
+    const selectEq = vi.fn().mockReturnValue({ maybeSingle });
+    const selectMock = vi.fn().mockReturnValue({ eq: selectEq });
+    fromMock.mockReturnValue({ update: updateMock, select: selectMock });
 
     const fd = new FormData();
     // duplicate + invalid + mixed case + whitespace
@@ -326,6 +343,41 @@ describe("savePathsAction", () => {
     expect(fromMock).toHaveBeenCalledWith("preferences");
     expect(updateMock).toHaveBeenCalledWith({ paths: ["backend", "ai_ml"] });
     expect(eqMock1).toHaveBeenCalledWith("user_id", "user-abc");
+  });
+
+  it("auto-seeds searches from the paths the first time (searches_seeded false)", async () => {
+    wireAuthed("user-abc");
+    eqMock1.mockResolvedValue({ error: null });
+    updateMock.mockReturnValue({ eq: eqMock1 });
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValue({ data: { searches_seeded: false }, error: null });
+    const selectEq = vi.fn().mockReturnValue({ maybeSingle });
+    const selectMock = vi.fn().mockReturnValue({ eq: selectEq });
+    // regenerateAutoSearches: delete(auto).eq().eq() then insert(rows)
+    const delEq2 = vi.fn().mockResolvedValue({ error: null });
+    const delEq1 = vi.fn().mockReturnValue({ eq: delEq2 });
+    const deleteMock2 = vi.fn().mockReturnValue({ eq: delEq1 });
+    const insertMock2 = vi.fn().mockResolvedValue({ error: null });
+    fromMock.mockReturnValue({
+      update: updateMock,
+      select: selectMock,
+      delete: deleteMock2,
+      insert: insertMock2,
+    });
+
+    const fd = new FormData();
+    fd.append("paths", "backend");
+    const res = await savePathsAction(undefined, fd);
+
+    expect(res.ok).toBe(true);
+    expect(insertMock2).toHaveBeenCalledTimes(1);
+    const rows = insertMock2.mock.calls[0][0];
+    expect(Array.isArray(rows)).toBe(true);
+    expect(rows[0]).toMatchObject({ origin: "auto", user_id: "user-abc" });
+    // and it flips searches_seeded true so it never re-seeds
+    expect(updateMock).toHaveBeenCalledWith({ searches_seeded: true });
+    expect(res.message).toMatch(/Created/);
   });
 
   it("stores an empty array when nothing valid is selected", async () => {
