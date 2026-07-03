@@ -30,7 +30,7 @@ export function AiLearningSection({ learnedSummary, initialNote }: AiLearningSec
   return (
     <section className="animate-fade-in-up" style={{ animationDelay: "120ms" }}>
       <SectionHeading
-        step="3"
+        step="4"
         title="How the AI scores you"
         subtitle="What it has learned from your feedback — and your own steering."
       />

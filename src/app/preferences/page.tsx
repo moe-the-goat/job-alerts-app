@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/app-shell";
 import { PreferencesSection } from "./preferences-section";
+import { PathsSection } from "./paths-section";
 import { SearchesSection } from "./searches-section";
 import { AiLearningSection } from "./ai-learning-section";
 import type { SearchRow } from "./types";
@@ -45,6 +46,7 @@ export default async function PreferencesPage() {
     next_run_at: null,
     min_match_percentage: 0,
     experience_level: "entry",
+    paths: [] as string[],
     candidate_preferences: "",
     preference_note: "",
   };
@@ -78,6 +80,8 @@ export default async function PreferencesPage() {
           initialExperienceLevel={prefs.experience_level ?? "entry"}
           nextRunAt={prefs.next_run_at}
         />
+
+        <PathsSection initialPaths={(prefs.paths as string[] | undefined) ?? []} />
 
         <SearchesSection initialSearches={searches} />
 

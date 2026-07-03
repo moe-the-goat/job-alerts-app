@@ -17,7 +17,7 @@ export function SearchesSection({ initialSearches }: SearchesSectionProps) {
   return (
     <section className="animate-fade-in-up" style={{ animationDelay: "120ms" }}>
       <SectionHeading
-        step="2"
+        step="3"
         title="Searches"
         subtitle="Each search is one query we send to the job boards. Add as many as you like."
       />

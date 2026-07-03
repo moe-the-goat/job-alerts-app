@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 // async Server Actions, so constants imported from here by client components
 // would otherwise become action references (see constants.ts).
 import {
+  CAREER_PATH_SLUGS,
   EXPERIENCE_LEVELS,
   FREQUENCY_HOURS,
   JOB_BOARDS,
@@ -135,6 +136,55 @@ export async function savePreferenceNoteAction(
 
   revalidatePath("/preferences");
   return { ok: true, message: note ? "Note saved." : "Note cleared." };
+}
+
+// --- Career paths (Tier 5a) ---
+
+/** Sanitize the submitted path slugs against the catalog: lowercase, dedupe,
+ *  drop anything not in CAREER_PATH_SLUGS. */
+function parsePaths(raw: FormDataEntryValue | null): string[] {
+  if (typeof raw !== "string" || raw.length === 0) return [];
+  const valid = new Set<string>(CAREER_PATH_SLUGS);
+  const out: string[] = [];
+  for (const tok of raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)) {
+    if (valid.has(tok) && !out.includes(tok)) out.push(tok);
+  }
+  return out;
+}
+
+export async function savePathsAction(
+  _prev: PrefState | undefined,
+  formData: FormData,
+): Promise<PrefState> {
+  const paths = parsePaths(formData.get("paths"));
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "Your session has expired. Please sign in again." };
+  }
+
+  // UPDATE scoped to the caller (defense in depth on top of RLS). The row
+  // already exists from onboarding.
+  const { error } = await supabase
+    .from("preferences")
+    .update({ paths })
+    .eq("user_id", user.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/preferences");
+  revalidatePath("/dashboard");
+  return {
+    ok: true,
+    message: paths.length
+      ? `Saved ${paths.length} path${paths.length === 1 ? "" : "s"}.`
+      : "Paths cleared.",
+  };
 }
 
 export type UpsertSearchInput = {
