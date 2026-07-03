@@ -24,6 +24,28 @@ export type FrequencyHours = (typeof FREQUENCY_HOURS)[number];
 export const EXPERIENCE_LEVELS = ["entry", "mid", "senior"] as const;
 export type ExperienceLevel = (typeof EXPERIENCE_LEVELS)[number];
 
+// Career paths / tracks the user targets (multi-select). From Tier 5b these
+// drive scrape targeting, per-user role weighting, filtering, and the verdict
+// prompt. Curated on purpose — each maps to known-good search terms + a role
+// tier worker-side, so the list stays short and legible rather than exhaustive.
+export const CAREER_PATHS = [
+  { slug: "backend", label: "Backend", hint: "APIs, services, databases" },
+  { slug: "frontend", label: "Frontend", hint: "Web UI, React / Vue" },
+  { slug: "fullstack", label: "Full-Stack", hint: "End-to-end web" },
+  { slug: "mobile", label: "Mobile", hint: "iOS / Android" },
+  { slug: "ai_ml", label: "AI / ML", hint: "LLMs, models, GenAI" },
+  { slug: "data_science", label: "Data Science", hint: "Modeling, analytics" },
+  { slug: "data_analysis", label: "Data Analysis", hint: "BI, dashboards, SQL" },
+  { slug: "data_engineering", label: "Data Engineering", hint: "Pipelines, warehouses" },
+  { slug: "devops", label: "DevOps / SRE", hint: "Cloud, CI/CD, infra" },
+  { slug: "qa", label: "QA / Test", hint: "Test automation" },
+  { slug: "security", label: "Security", hint: "AppSec, infosec" },
+  { slug: "embedded", label: "Embedded", hint: "Firmware, systems" },
+  { slug: "game", label: "Game Dev", hint: "Engines, gameplay" },
+] as const;
+export type CareerPathSlug = (typeof CAREER_PATHS)[number]["slug"];
+export const CAREER_PATH_SLUGS: readonly string[] = CAREER_PATHS.map((p) => p.slug);
+
 export const JOB_BOARDS = [
   "linkedin",
   "indeed",

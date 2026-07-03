@@ -28,6 +28,7 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import {
   deleteSearchAction,
+  savePathsAction,
   savePreferenceNoteAction,
   savePreferencesAction,
   toggleSearchAction,
@@ -298,6 +299,46 @@ describe("savePreferenceNoteAction", () => {
 
     expect(res.ok).toBe(true);
     expect(updateMock).toHaveBeenCalledWith({ preference_note: null });
+  });
+});
+
+describe("savePathsAction", () => {
+  it("rejects when session is missing", async () => {
+    getUserMock.mockResolvedValue({ data: { user: null } });
+    const fd = new FormData();
+    fd.append("paths", "backend,ai_ml");
+    const res = await savePathsAction(undefined, fd);
+    expect(res.ok).toBe(false);
+  });
+
+  it("validates + dedupes slugs against the catalog and scopes the update to the user", async () => {
+    wireAuthed("user-abc");
+    eqMock1.mockResolvedValue({ error: null });
+    updateMock.mockReturnValue({ eq: eqMock1 });
+    fromMock.mockReturnValue({ update: updateMock });
+
+    const fd = new FormData();
+    // duplicate + invalid + mixed case + whitespace
+    fd.append("paths", "Backend, ai_ml , backend, not_a_path");
+    const res = await savePathsAction(undefined, fd);
+
+    expect(res.ok).toBe(true);
+    expect(fromMock).toHaveBeenCalledWith("preferences");
+    expect(updateMock).toHaveBeenCalledWith({ paths: ["backend", "ai_ml"] });
+    expect(eqMock1).toHaveBeenCalledWith("user_id", "user-abc");
+  });
+
+  it("stores an empty array when nothing valid is selected", async () => {
+    wireAuthed("user-abc");
+    eqMock1.mockResolvedValue({ error: null });
+    updateMock.mockReturnValue({ eq: eqMock1 });
+    fromMock.mockReturnValue({ update: updateMock });
+
+    const fd = new FormData();
+    fd.append("paths", "nonsense,also_bad");
+    const res = await savePathsAction(undefined, fd);
+    expect(res.ok).toBe(true);
+    expect(updateMock).toHaveBeenCalledWith({ paths: [] });
   });
 });
 
