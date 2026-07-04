@@ -31,6 +31,7 @@ import {
 } from "@/components/workspace/workspace-context";
 import type { FeedbackType, JobWithFeedback } from "../_lib/types";
 import { SeverityBadge, type SeverityKind } from "./severity-badge";
+import { CvTailorPanel } from "./cv-tailor-panel";
 
 interface ResultsGridProps {
   jobs: JobWithFeedback[];
@@ -560,6 +561,8 @@ function RowDetail({
           </dl>
         </div>
       </div>
+
+      <CvTailorPanel jobResultId={job.id} />
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
