@@ -37,10 +37,24 @@ export const MODEL_CAPS: Record<string, ModelCap> = {
     tpm: 120000,
     tpd: 4000000,
   },
-  // Groq — 2 accounts → caps doubled (single: 30 RPM / 1,000 RPD / 12K TPM / 100K TPD).
+  // Groq — 2 accounts → caps doubled (single: 30 RPM / 1,000 RPD / 8K TPM / 200K TPD).
+  // Migrated 2026-07 off the deprecated llama-3.3-70b; same model as the
+  // Cerebras primary, distinct id (Groq prefixes "openai/").
+  "openai/gpt-oss-120b": {
+    provider: "Groq",
+    label: "Groq gpt-oss-120b",
+    accounts: 2,
+    rpm: 60,
+    rpd: 2000,
+    tpm: 16000,
+    tpd: 400000,
+  },
+  // Groq's OLD model — deprecated 2026-07, decommissioned 2026-08-16. Kept so
+  // HISTORICAL llm_usage_daily rows keep rendering with a label + caps; no new
+  // usage lands here after the worker migration.
   "llama-3.3-70b-versatile": {
     provider: "Groq",
-    label: "Groq llama-3.3-70b",
+    label: "Groq llama-3.3-70b (retired)",
     accounts: 2,
     rpm: 60,
     rpd: 2000,
