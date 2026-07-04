@@ -8,6 +8,7 @@ import { PreferencesSection } from "./preferences-section";
 import { PathsSection } from "./paths-section";
 import { SearchesSection } from "./searches-section";
 import { AiLearningSection } from "./ai-learning-section";
+import { GithubSection } from "./github-section";
 import type { SearchRow } from "./types";
 
 export const metadata: Metadata = {
@@ -21,7 +22,7 @@ export default async function PreferencesPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [prefsRes, searchesRes] = await Promise.all([
+  const [prefsRes, searchesRes, githubRes] = await Promise.all([
     // select("*") (not an explicit column list) so a freshly-added column like
     // min_match_percentage never errors the load before its migration is applied
     // — missing columns simply read as undefined and fall back to the default.
@@ -37,7 +38,17 @@ export default async function PreferencesPage() {
       )
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false }),
+    // GitHub handle (Tier 6a) — degrades to "" if migration 0027 isn't applied
+    // (the query returns an error + null data rather than throwing).
+    supabase
+      .from("profiles")
+      .select("github_username")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
+
+  const githubUsername =
+    ((githubRes.data as { github_username?: string | null } | null)?.github_username) ?? "";
 
   const prefs = prefsRes.data ?? {
     notification_email: user.email ?? "",
@@ -89,6 +100,8 @@ export default async function PreferencesPage() {
           learnedSummary={prefs.candidate_preferences ?? ""}
           initialNote={prefs.preference_note ?? ""}
         />
+
+        <GithubSection initialUsername={githubUsername} />
       </div>
     </AppShell>
   );
