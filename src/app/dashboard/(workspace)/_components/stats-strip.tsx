@@ -188,9 +188,14 @@ function formatNext(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   if (d.getTime() <= Date.now()) return "on the next cron tick";
-  return d.toLocaleString(undefined, {
+  // Pin to Asia/Jerusalem: this renders on the server (UTC on Vercel), and an
+  // unpinned toLocaleString showed the UTC hour — a run scheduled for 9 PM
+  // local read "6:00 PM" here while the reschedule dialog said 9. Users are
+  // Palestine-based, like every other day-boundary in the app.
+  return d.toLocaleString("en-GB", {
+    timeZone: "Asia/Jerusalem",
     weekday: "short",
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
   });
 }

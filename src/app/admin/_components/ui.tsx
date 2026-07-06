@@ -82,7 +82,10 @@ export function Pill({
 
 export function fmtTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleString(undefined, {
+    // Server-rendered (UTC on Vercel) — pin to Asia/Jerusalem so admin
+    // timestamps match the wall clock, same as the dashboard strip.
+    return new Date(iso).toLocaleString("en-GB", {
+      timeZone: "Asia/Jerusalem",
       month: "short",
       day: "numeric",
       hour: "2-digit",
