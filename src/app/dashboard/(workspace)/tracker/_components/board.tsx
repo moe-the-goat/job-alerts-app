@@ -19,13 +19,16 @@ export function Board({ bookmarks }: { bookmarks: Bookmark[] }) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    // A real kanban: columns keep a usable fixed width and the BOARD scrolls
+    // horizontally. The old 6-across grid squeezed each column to ~170px,
+    // which crushed the cards (truncated titles, overflowing controls).
+    <div className="flex gap-3 overflow-x-auto pb-3">
       {BOOKMARK_STATUSES.map((status) => {
         const items = byStatus.get(status) ?? [];
         return (
           <div
             key={status}
-            className="flex flex-col gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/30 p-2.5"
+            className="flex w-60 shrink-0 flex-col gap-2 self-start rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/30 p-2.5 sm:w-64"
           >
             <div className="flex items-center justify-between px-0.5">
               <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">

@@ -46,34 +46,117 @@ export const CAREER_PATHS = [
 export type CareerPathSlug = (typeof CAREER_PATHS)[number]["slug"];
 export const CAREER_PATH_SLUGS: readonly string[] = CAREER_PATHS.map((p) => p.slug);
 
-// Curated search terms each path seeds (Tier 5c). Short on purpose — a handful
-// of strong queries per path beats dozens of near-duplicates that just multiply
-// scraping + embedding cost (see the cost analysis). The seeded set is deduped
-// and capped at MAX_AUTO_SEARCHES total.
+// Curated search terms each path seeds (Tier 5c). Ordered strongest-first —
+// the round-robin selector below takes terms in this order, so put the title
+// that captures the most real postings at the top. Curated over exhaustive:
+// strong distinct queries beat dozens of near-duplicates that just multiply
+// scraping + embedding cost (see the cost analysis). Note the generic
+// "Software Engineer" under backend/fullstack — a huge share of relevant
+// postings use the generic title and no path-specific term matches them.
 export const PATH_SEARCH_TERMS: Record<string, string[]> = {
-  backend: ["Backend Developer", "Backend Engineer"],
-  frontend: ["Frontend Developer", "React Developer"],
-  fullstack: ["Full Stack Developer", "Full Stack Engineer"],
-  mobile: ["Mobile Developer", "Android Developer", "iOS Developer"],
-  ai_ml: ["Machine Learning Engineer", "AI Engineer"],
-  data_science: ["Data Scientist"],
-  data_analysis: ["Data Analyst"],
-  data_engineering: ["Data Engineer"],
-  devops: ["DevOps Engineer", "Site Reliability Engineer"],
-  qa: ["QA Engineer", "Test Automation Engineer"],
-  security: ["Security Engineer"],
-  embedded: ["Embedded Software Engineer"],
-  game: ["Game Developer"],
+  backend: [
+    "Backend Developer",
+    "Software Engineer",
+    "Backend Engineer",
+    "Python Developer",
+    "Node.js Developer",
+  ],
+  frontend: [
+    "Frontend Developer",
+    "React Developer",
+    "Frontend Engineer",
+    "Web Developer",
+  ],
+  fullstack: [
+    "Full Stack Developer",
+    "Software Engineer",
+    "Full Stack Engineer",
+    "Web Developer",
+  ],
+  mobile: [
+    "Mobile Developer",
+    "Android Developer",
+    "iOS Developer",
+    "React Native Developer",
+    "Flutter Developer",
+  ],
+  ai_ml: [
+    "Machine Learning Engineer",
+    "AI Engineer",
+    "LLM Engineer",
+    "Deep Learning Engineer",
+    "NLP Engineer",
+  ],
+  data_science: [
+    "Data Scientist",
+    "Applied Scientist",
+    "Machine Learning Scientist",
+  ],
+  data_analysis: [
+    "Data Analyst",
+    "Business Intelligence Analyst",
+    "BI Developer",
+    "Business Analyst",
+  ],
+  data_engineering: [
+    "Data Engineer",
+    "Analytics Engineer",
+    "ETL Developer",
+    "Big Data Engineer",
+  ],
+  devops: [
+    "DevOps Engineer",
+    "Site Reliability Engineer",
+    "Cloud Engineer",
+    "Platform Engineer",
+    "Infrastructure Engineer",
+  ],
+  qa: [
+    "QA Engineer",
+    "Test Automation Engineer",
+    "SDET",
+    "Quality Assurance Analyst",
+  ],
+  security: [
+    "Security Engineer",
+    "Application Security Engineer",
+    "Cybersecurity Analyst",
+    "SOC Analyst",
+  ],
+  embedded: [
+    "Embedded Software Engineer",
+    "Firmware Engineer",
+    "Embedded Systems Engineer",
+    "IoT Engineer",
+  ],
+  game: [
+    "Game Developer",
+    "Unity Developer",
+    "Gameplay Programmer",
+    "Unreal Engine Developer",
+  ],
 };
-export const MAX_AUTO_SEARCHES = 6;
+export const MAX_AUTO_SEARCHES = 12;
 
-/** Deduped, capped list of search terms for the chosen paths (Tier 5c seeding).
- *  Curated over exhaustive — dedupe shared terms, cap the total. */
+/**
+ * Deduped, capped search terms for the chosen paths (Tier 5c seeding).
+ *
+ * ROUND-ROBIN across paths, not path-by-path: every chosen path lands its
+ * strongest term before any path gets its second. The old sequential fill
+ * meant a user picking 5 paths had the whole cap eaten by the first two-
+ * three paths and the rest got ZERO searches — the exact "my paths aren't
+ * covered" failure. One path picked → that path's full curated list.
+ */
 export function selectAutoSearchTerms(paths: string[]): string[] {
+  const lists = paths.map((slug) => PATH_SEARCH_TERMS[slug] ?? []);
+  const longest = Math.max(0, ...lists.map((l) => l.length));
   const out: string[] = [];
   const seen = new Set<string>();
-  for (const slug of paths) {
-    for (const term of PATH_SEARCH_TERMS[slug] ?? []) {
+  for (let rank = 0; rank < longest && out.length < MAX_AUTO_SEARCHES; rank++) {
+    for (const list of lists) {
+      if (out.length >= MAX_AUTO_SEARCHES) break;
+      const term = list[rank];
+      if (!term) continue;
       const key = term.toLowerCase();
       if (!seen.has(key)) {
         seen.add(key);
@@ -81,7 +164,7 @@ export function selectAutoSearchTerms(paths: string[]): string[] {
       }
     }
   }
-  return out.slice(0, MAX_AUTO_SEARCHES);
+  return out;
 }
 
 export const JOB_BOARDS = [
