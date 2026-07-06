@@ -17,7 +17,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { MAX_RUNS_PER_DAY } from "@/app/dashboard/_lib/dashboard-state";
+import {
+  MAX_RUNS_PER_DAY,
+  resolvePendingDispatch,
+} from "@/app/dashboard/_lib/dashboard-state";
 
 export type RunActionState = { ok: boolean; error?: string; message?: string };
 
@@ -138,13 +141,37 @@ export async function triggerManualRunAction(): Promise<RunActionState> {
   // 2. No run already in flight (avoid double-dispatch / racing job_results).
   const { data: lastRun } = await supabase
     .from("runs")
-    .select("status")
+    .select("status, started_at")
     .eq("user_id", user.id)
     .order("started_at", { ascending: false })
     .limit(1)
-    .maybeSingle<{ status: string }>();
+    .maybeSingle<{ status: string; started_at: string }>();
   if (lastRun?.status === "running") {
     return { ok: false, error: "A run is already in progress. Give it a few minutes." };
+  }
+
+  // 2b. No dispatch still warming up. The worker doesn't create its runs row
+  // until after boot + the shared local scrape (~10-15 min), so the check
+  // above is blind to a run dispatched in that window — including an admin
+  // forced run, which stamps the same column. Without this, a second dispatch
+  // "succeeds" here and slips past the budget (its row doesn't exist yet to
+  // be counted), only for the worker to silently skip or double-run it.
+  const { data: prefsRow } = await supabase
+    .from("preferences")
+    .select("last_manual_dispatch_at")
+    .eq("user_id", user.id)
+    .maybeSingle<{ last_manual_dispatch_at: string | null }>();
+  if (
+    resolvePendingDispatch(
+      prefsRow?.last_manual_dispatch_at ?? null,
+      lastRun?.started_at ?? null,
+    )
+  ) {
+    return {
+      ok: false,
+      error:
+        "A run is already starting — it shows up at the top of your dashboard within a few minutes.",
+    };
   }
 
   // 3. Atomic dispatch lock (fixes the double-press bug). The runs-status check

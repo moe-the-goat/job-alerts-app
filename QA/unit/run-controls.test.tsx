@@ -61,6 +61,13 @@ describe("<RunControls />", () => {
     expect(screen.getByText("running")).toBeInTheDocument();
   });
 
+  it("disables Run now and shows 'starting' while a dispatch is warming up", () => {
+    renderControls({ pendingDispatchAt: new Date().toISOString() });
+    const btn = screen.getByRole("button", { name: /Run now/ });
+    expect(btn).toBeDisabled();
+    expect(screen.getByText("starting")).toBeInTheDocument();
+  });
+
   it("opens a confirm dialog with the cost/quota copy", () => {
     renderControls({ runsUsedToday: 0, maxRunsPerDay: 2 });
     fireEvent.click(screen.getByRole("button", { name: /Run now/ }));

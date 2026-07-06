@@ -25,6 +25,9 @@ interface RunControlsProps {
   // The latest run's status — used to disable "Run now" while one is in flight.
   lastRunStatus: string | null;
   nextRunAt: string | null;
+  // A dispatch (user's or admin-forced) whose runs row hasn't landed yet —
+  // treated like an in-flight run so the button can't fire a duplicate.
+  pendingDispatchAt?: string | null;
 }
 
 export function RunControls({
@@ -32,9 +35,11 @@ export function RunControls({
   maxRunsPerDay,
   lastRunStatus,
   nextRunAt,
+  pendingDispatchAt,
 }: RunControlsProps) {
   const remaining = Math.max(0, maxRunsPerDay - runsUsedToday);
-  const inFlight = lastRunStatus === "running";
+  const starting = Boolean(pendingDispatchAt);
+  const inFlight = lastRunStatus === "running" || starting;
   const noneLeft = remaining <= 0;
 
   const [runOpen, setRunOpen] = useState(false);
@@ -47,9 +52,11 @@ export function RunControls({
         onClick={() => setRunOpen(true)}
         disabled={inFlight || noneLeft}
         title={
-          inFlight
-            ? "A run is already in progress."
-            : noneLeft
+          starting
+            ? "A run is starting — it appears at the top in a few minutes."
+            : inFlight
+              ? "A run is already in progress."
+              : noneLeft
               ? "You've used today's runs. Resets at midnight."
               : "Trigger a fresh run now"
         }
@@ -68,7 +75,7 @@ export function RunControls({
               : "bg-[var(--bg-base)] text-[var(--accent-400)]"
           }`}
         >
-          {inFlight ? "running" : `${remaining}/${maxRunsPerDay} left`}
+          {starting ? "starting" : inFlight ? "running" : `${remaining}/${maxRunsPerDay} left`}
         </span>
       </button>
 
