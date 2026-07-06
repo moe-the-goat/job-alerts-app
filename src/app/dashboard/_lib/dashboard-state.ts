@@ -33,11 +33,42 @@ export interface DashboardState {
   // mirrors the worker's MAX_RUNS_PER_DAY so the UI and worker agree.
   runsUsedToday: number;
   maxRunsPerDay: number;
+  // A dispatched run that hasn't produced its runs row yet (the worker only
+  // inserts it after boot + the shared local scrape, ~10-15 min). Non-null ⇒
+  // show a "run starting" state and block new dispatches. Set by both the
+  // user's Run-now and the admin's forced run.
+  pendingDispatchAt: string | null;
 }
 
 // Keep in lockstep with multi_user_runner.MAX_RUNS_PER_DAY. If you change one,
 // change the other — the worker is the enforcer; this is only for display.
 export const MAX_RUNS_PER_DAY = 2;
+
+// How long a dispatch stays "pending" while we wait for its runs row. Runs
+// take ~35-40 min total and the row lands ~10-15 min in; past this window we
+// assume the workflow died and stop blocking/showing the starting state.
+export const PENDING_DISPATCH_WINDOW_MS = 45 * 60 * 1000;
+
+/**
+ * Whether a manual dispatch is still "warming up": dispatched recently and its
+ * runs row hasn't appeared yet (rows started at/after the dispatch instant
+ * count as landed). Pure so both the loader and the Run-now guard share it.
+ */
+export function resolvePendingDispatch(
+  dispatchedAt: string | null | undefined,
+  lastRunStartedAt: string | null | undefined,
+  now: number = Date.now(),
+): string | null {
+  if (!dispatchedAt) return null;
+  const t = new Date(dispatchedAt).getTime();
+  if (!Number.isFinite(t)) return null;
+  if (now - t >= PENDING_DISPATCH_WINDOW_MS || t > now + 60_000) return null;
+  if (lastRunStartedAt) {
+    const started = new Date(lastRunStartedAt).getTime();
+    if (Number.isFinite(started) && started >= t) return null; // it landed
+  }
+  return dispatchedAt;
+}
 
 /**
  * Single source of truth for the dashboard's read state. Wrapped in
@@ -60,7 +91,9 @@ export const loadDashboardState = cache(async (): Promise<DashboardState> => {
       .single(),
     supabase
       .from("preferences")
-      .select("notification_email, frequency_hours, is_active, next_run_at")
+      .select(
+        "notification_email, frequency_hours, is_active, next_run_at, last_manual_dispatch_at",
+      )
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase
@@ -91,6 +124,7 @@ export const loadDashboardState = cache(async (): Promise<DashboardState> => {
   const activeSearches = searchesRes.count ?? 0;
   const isActive = prefs?.is_active ?? false;
   const ready = hasCv && hasPrefs && activeSearches > 0 && isActive;
+  const lastRun = (lastRunRes.data as LastRun | null) ?? null;
 
   return {
     user,
@@ -104,12 +138,16 @@ export const loadDashboardState = cache(async (): Promise<DashboardState> => {
     nextRunAt: prefs?.next_run_at ?? null,
     activeSearches,
     ready,
-    lastRun: (lastRunRes.data as LastRun | null) ?? null,
+    lastRun,
     runsUsedToday:
       typeof runsUsedRes.data === "number" && runsUsedRes.data >= 0
         ? runsUsedRes.data
         : 0,
     maxRunsPerDay: MAX_RUNS_PER_DAY,
+    pendingDispatchAt: resolvePendingDispatch(
+      prefs?.last_manual_dispatch_at ?? null,
+      lastRun?.started_at ?? null,
+    ),
   };
 });
 

@@ -37,6 +37,7 @@ interface Scenario {
     frequency_hours: number;
     is_active: boolean;
     next_run_at: string | null;
+    last_manual_dispatch_at?: string | null;
   } | null;
   searches?: number;
   lastRun?: object | null;
@@ -245,6 +246,79 @@ describe("loadDashboardState", () => {
     const { loadDashboardState } = await freshLoader();
     const state = await loadDashboardState();
     expect(state.runsUsedToday).toBe(0);
+  });
+});
+
+describe("pendingDispatchAt", () => {
+  const basePrefs = {
+    notification_email: "a@b.co",
+    frequency_hours: 24,
+    is_active: true,
+    next_run_at: null,
+  };
+  const baseScenario = {
+    user: { id: "u1", email: "a@b.co" },
+    profile: { cv_text: "a".repeat(500), cv_uploaded_at: null },
+    searches: 2,
+  };
+
+  it("surfaces a fresh dispatch whose runs row hasn't landed yet", async () => {
+    const dispatched = new Date(Date.now() - 5 * 60_000).toISOString();
+    wireSupabase({
+      ...baseScenario,
+      prefs: { ...basePrefs, last_manual_dispatch_at: dispatched },
+      lastRun: { status: "success", started_at: new Date(Date.now() - 3 * 3600_000).toISOString() },
+    });
+    const { loadDashboardState } = await freshLoader();
+    const state = await loadDashboardState();
+    expect(state.pendingDispatchAt).toBe(dispatched);
+  });
+
+  it("clears once the dispatched run lands (runs row started after the dispatch)", async () => {
+    const dispatched = new Date(Date.now() - 20 * 60_000).toISOString();
+    wireSupabase({
+      ...baseScenario,
+      prefs: { ...basePrefs, last_manual_dispatch_at: dispatched },
+      lastRun: { status: "running", started_at: new Date(Date.now() - 5 * 60_000).toISOString() },
+    });
+    const { loadDashboardState } = await freshLoader();
+    const state = await loadDashboardState();
+    expect(state.pendingDispatchAt).toBeNull();
+  });
+
+  it("expires a stale dispatch (workflow presumed dead) instead of blocking forever", async () => {
+    const dispatched = new Date(Date.now() - 2 * 3600_000).toISOString();
+    wireSupabase({
+      ...baseScenario,
+      prefs: { ...basePrefs, last_manual_dispatch_at: dispatched },
+      lastRun: null,
+    });
+    const { loadDashboardState } = await freshLoader();
+    const state = await loadDashboardState();
+    expect(state.pendingDispatchAt).toBeNull();
+  });
+
+  it("is null when nothing was dispatched", async () => {
+    wireSupabase({ ...baseScenario, prefs: basePrefs, lastRun: null });
+    const { loadDashboardState } = await freshLoader();
+    const state = await loadDashboardState();
+    expect(state.pendingDispatchAt).toBeNull();
+  });
+});
+
+describe("resolvePendingDispatch", () => {
+  it("handles garbage timestamps and clock skew safely", async () => {
+    const { resolvePendingDispatch } = await freshLoader();
+    const now = Date.now();
+    expect(resolvePendingDispatch(null, null, now)).toBeNull();
+    expect(resolvePendingDispatch("not-a-date", null, now)).toBeNull();
+    // A dispatch stamped absurdly in the future (bad clock) is ignored.
+    expect(
+      resolvePendingDispatch(new Date(now + 3600_000).toISOString(), null, now),
+    ).toBeNull();
+    // A fresh one with no run at all is pending.
+    const fresh = new Date(now - 60_000).toISOString();
+    expect(resolvePendingDispatch(fresh, null, now)).toBe(fresh);
   });
 });
 
