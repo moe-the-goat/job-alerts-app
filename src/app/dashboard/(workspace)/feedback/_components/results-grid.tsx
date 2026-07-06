@@ -518,6 +518,24 @@ function RowDetail({
       className="row-detail-enter border-b border-[rgba(205,217,229,0.05)] bg-[var(--surface-recessed)]/60 px-3 py-3"
       data-testid={`row-detail-${job.id}`}
     >
+      {/* The single most important action on an expanded job — reading the
+          actual posting — gets the one solid button in the row, up top where
+          it can't be missed (it used to be a ghost link at the very bottom). */}
+      {job.job_url && (
+        <div className="mb-3 flex justify-end">
+          <a
+            href={job.job_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-500)] px-3 py-1.5 text-[12.5px] font-medium text-white outline-none transition-colors hover:bg-[var(--accent-400)] focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-base)]"
+          >
+            Open job posting
+            <ExternalLink className="h-3.5 w-3.5" />
+            <Kbd keys={["O"]} />
+          </a>
+        </div>
+      )}
       <div className="grid gap-3 @[640px]:grid-cols-[3fr_2fr]">
         {job.ai_verdict ? (
           <div className="rounded-lg bg-[var(--bg-elevated)]/70 p-3 shadow-[var(--shadow-recessed)]">
@@ -600,19 +618,6 @@ function RowDetail({
             );
           })}
         </div>
-        {job.job_url && (
-          <a
-            href={job.job_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1 rounded-md text-[11.5px] text-[var(--text-tertiary)] outline-none transition-colors duration-150 hover:text-[var(--accent-400)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-          >
-            Open job
-            <ExternalLink className="h-3 w-3" />
-            <Kbd keys={["O"]} />
-          </a>
-        )}
       </div>
 
       {/* Optional free-text note — same idea as the email feedback page: kept
