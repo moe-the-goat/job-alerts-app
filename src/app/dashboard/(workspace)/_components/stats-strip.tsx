@@ -1,12 +1,40 @@
 import { AlertCircle, CheckCircle2, Clock, Loader2 } from "lucide-react";
 import type { LastRun } from "../../_lib/dashboard-state";
+import { AutoRefresh, ElapsedSince } from "./run-status-live";
 
 interface StatsStripProps {
   lastRun: LastRun | null;
   nextRunAt?: string | null;
+  // A dispatch whose runs row hasn't landed yet (~10-15 min warm-up) — shown
+  // as a "starting" state so a Run-now click is visibly acknowledged.
+  pendingDispatchAt?: string | null;
 }
 
-export function StatsStrip({ lastRun, nextRunAt }: StatsStripProps) {
+export function StatsStrip({ lastRun, nextRunAt, pendingDispatchAt }: StatsStripProps) {
+  // A freshly dispatched run outranks whatever the previous run says: the user
+  // just started something and needs to see it happening.
+  if (pendingDispatchAt) {
+    return (
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/40 px-5 py-4">
+        <AutoRefresh />
+        <div className="flex items-center gap-3">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-[var(--accent-500)]/10 ring-1 ring-inset ring-[var(--accent-500)]/30">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--accent-400)]" />
+          </span>
+          <div>
+            <div className="text-[13px] font-medium text-[var(--text-primary)]">
+              Run starting…
+            </div>
+            <div className="text-[11.5px] text-[var(--text-tertiary)]">
+              requested <ElapsedSince iso={pendingDispatchAt} /> ago · warming up —
+              live progress appears here once scraping starts · ~35–40 min total
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!lastRun) {
     return (
       <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/40 px-5 py-4">
@@ -26,6 +54,7 @@ export function StatsStrip({ lastRun, nextRunAt }: StatsStripProps) {
 
   return (
     <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/40 px-5 py-4">
+      {status === "running" && <AutoRefresh />}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <span
@@ -39,14 +68,27 @@ export function StatsStrip({ lastRun, nextRunAt }: StatsStripProps) {
           </span>
           <div>
             <div className="text-[13px] font-medium text-[var(--text-primary)]">
-              Last run · {statusMeta.label}
+              {status === "running" ? "Run in progress" : `Last run · ${statusMeta.label}`}
             </div>
             <div className="text-[11.5px] text-[var(--text-tertiary)]">
-              {formatRelative(lastRun.started_at)}
-              {lastRun.ended_at && (
-                <> · took {formatDuration(lastRun.started_at, lastRun.ended_at)}</>
+              {status === "running" ? (
+                <>
+                  running for <ElapsedSince iso={lastRun.started_at} /> · ~35–40 min
+                  total
+                </>
+              ) : (
+                <>
+                  {formatRelative(lastRun.started_at)}
+                  {lastRun.ended_at && (
+                    <>
+                      {" "}
+                      · finished {formatFinished(lastRun.ended_at)} · took{" "}
+                      {formatDuration(lastRun.started_at, lastRun.ended_at)}
+                    </>
+                  )}
+                  {nextRunAt && <> · next {formatNext(nextRunAt)}</>}
+                </>
               )}
-              {nextRunAt && <> · next {formatNext(nextRunAt)}</>}
             </div>
           </div>
         </div>
@@ -149,6 +191,23 @@ function formatNext(iso: string): string {
   return d.toLocaleString(undefined, {
     weekday: "short",
     hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+// Absolute finish time, pinned to Asia/Jerusalem (this renders on the server,
+// which runs UTC — the users are Palestine-based, like the rest of the app's
+// day-boundary logic). Adds the weekday once it's no longer "today".
+function formatFinished(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const sameDay =
+    d.toLocaleDateString("en-GB", { timeZone: "Asia/Jerusalem" }) ===
+    new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Jerusalem" });
+  return d.toLocaleString("en-GB", {
+    timeZone: "Asia/Jerusalem",
+    ...(sameDay ? {} : { weekday: "short" }),
+    hour: "2-digit",
     minute: "2-digit",
   });
 }

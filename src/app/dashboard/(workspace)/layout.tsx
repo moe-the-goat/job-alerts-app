@@ -18,7 +18,11 @@ export default async function WorkspaceLayout({
   return (
     <WorkspaceProvider>
       <div className="animate-fade-in space-y-5">
-        <StatsStrip lastRun={state.lastRun} nextRunAt={state.nextRunAt} />
+        <StatsStrip
+          lastRun={state.lastRun}
+          nextRunAt={state.nextRunAt}
+          pendingDispatchAt={state.pendingDispatchAt}
+        />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_260px]">
           <div className="min-w-0">

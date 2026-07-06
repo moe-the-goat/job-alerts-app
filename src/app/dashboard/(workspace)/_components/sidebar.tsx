@@ -21,6 +21,7 @@ export function Sidebar({ state }: SidebarProps) {
           maxRunsPerDay={state.maxRunsPerDay}
           lastRunStatus={state.lastRun?.status ?? null}
           nextRunAt={state.nextRunAt}
+          pendingDispatchAt={state.pendingDispatchAt}
         />
         <SidebarLink
           href="/preferences"

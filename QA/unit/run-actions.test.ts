@@ -41,12 +41,21 @@ afterEach(() => {
 });
 
 // Wire both tables the action touches:
-//  - runs: the latest-run-status read (maybeSingle → {status})
-//  - preferences: the atomic dispatch-claim conditional update
+//  - runs: the latest-run read (maybeSingle → {status, started_at})
+//  - preferences: the pending-dispatch read (.select().eq().maybeSingle() →
+//    {last_manual_dispatch_at}), the atomic dispatch-claim conditional update
 //    (.update().eq().or().select().maybeSingle()) + the release update().eq()
 // `claimWon` controls whether the claim returns a row (true) or zero rows
-// (false = another dispatch already claimed it).
-function wireSupabase(status: string | null, { claimWon = true } = {}) {
+// (false = another dispatch already claimed it). `dispatchedAt` is the stored
+// last_manual_dispatch_at; `startedAt` the latest run's started_at.
+function wireSupabase(
+  status: string | null,
+  {
+    claimWon = true,
+    dispatchedAt = null as string | null,
+    startedAt = "2026-01-01T00:00:00Z",
+  } = {},
+) {
   fromMock.mockImplementation((table: string) => {
     if (table === "runs") {
       return {
@@ -55,7 +64,9 @@ function wireSupabase(status: string | null, { claimWon = true } = {}) {
             order: () => ({
               limit: () => ({
                 maybeSingle: async () =>
-                  status === null ? { data: null } : { data: { status } },
+                  status === null
+                    ? { data: null }
+                    : { data: { status, started_at: startedAt } },
               }),
             }),
           }),
@@ -64,6 +75,15 @@ function wireSupabase(status: string | null, { claimWon = true } = {}) {
     }
     if (table === "preferences") {
       return {
+        // pending-dispatch read: .select().eq().maybeSingle()
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: { last_manual_dispatch_at: dispatchedAt },
+              error: null,
+            }),
+          }),
+        }),
         update: () => ({
           // claim path: .eq().or().select().maybeSingle()
           eq: () => ({
@@ -121,6 +141,35 @@ describe("triggerManualRunAction", () => {
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/in progress/i);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects while a dispatched run is still warming up (no runs row yet)", async () => {
+    rpcMock.mockResolvedValue({ data: 1, error: null });
+    // Dispatched 5 min ago (user's own press OR an admin forced run — both
+    // stamp last_manual_dispatch_at); the worker hasn't inserted its runs row
+    // yet, so the latest run predates the dispatch.
+    wireSupabase("success", {
+      dispatchedAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+      startedAt: new Date(Date.now() - 3 * 3600_000).toISOString(),
+    });
+    const res = await triggerManualRunAction();
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/already starting/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("allows a new dispatch once the previous one landed as a runs row", async () => {
+    rpcMock.mockResolvedValue({ data: 1, error: null });
+    // Dispatched 30 min ago and its run landed (started AFTER the dispatch)
+    // and finished — the pending guard must not block forever.
+    wireSupabase("success", {
+      dispatchedAt: new Date(Date.now() - 30 * 60_000).toISOString(),
+      startedAt: new Date(Date.now() - 20 * 60_000).toISOString(),
+    });
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    const res = await triggerManualRunAction();
+    expect(res.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a double-press: when the atomic claim is lost, no dispatch fires", async () => {

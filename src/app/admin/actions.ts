@@ -277,6 +277,20 @@ export async function adminTriggerRunAction(
   const ok = await dispatchWorkerRun(userId, token, { adminOverride: true });
   if (!ok) return { ok: false, error: "Couldn't start the run. Try again." };
 
+  // Stamp the user's dispatch lock: their dashboard shows the "run starting"
+  // state immediately, and their own Run-now is blocked while this forced run
+  // warms up (its runs row — which also consumes one of their daily slots —
+  // doesn't appear for ~10-15 min, so without this stamp they could dispatch
+  // an extra run in that gap). Best-effort: the run is already dispatched.
+  await createAdminClient()
+    .from("preferences")
+    .update({ last_manual_dispatch_at: new Date().toISOString() })
+    .eq("user_id", userId);
+
   revalidatePath("/admin");
-  return { ok: true, message: "Forced run triggered — results in ~35-40 min." };
+  return {
+    ok: true,
+    message:
+      "Forced run triggered — it appears on the user's dashboard and uses one of their daily slots; results in ~35-40 min.",
+  };
 }
