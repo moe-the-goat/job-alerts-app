@@ -69,7 +69,14 @@ export function BookmarkCard({ bookmark }: { bookmark: Bookmark }) {
           </div>
         </div>
         {bookmark.match_percentage != null && (
-          <span className="shrink-0 rounded-md bg-[var(--bg-overlay)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--text-secondary)] ring-1 ring-inset ring-[var(--border-muted)]">
+          <span
+            className={
+              "shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[11px] font-medium ring-1 ring-inset " +
+              (bookmark.match_percentage >= 80
+                ? "bg-[var(--highlight-400)]/14 text-[var(--highlight-500)] ring-[var(--highlight-400)]/35"
+                : "bg-[var(--bg-overlay)] text-[var(--text-secondary)] ring-[var(--border-muted)]")
+            }
+          >
             {bookmark.match_percentage}
           </span>
         )}
