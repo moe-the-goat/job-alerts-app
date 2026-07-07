@@ -1,4 +1,5 @@
 import { Logo } from "@/components/brand/logo";
+import { ThemeToggle } from "@/components/brand/theme-toggle";
 import { SignOutButton } from "@/app/dashboard/sign-out-button";
 
 interface AppShellProps {
@@ -16,12 +17,13 @@ export function AppShell({ email, children }: AppShellProps) {
               <Link href="/"> — nested anchors (invalid HTML) where the inner "/"
               won, bouncing logged-in users to the public marketing page. */}
           <Logo href="/dashboard" />
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {email && (
               <span className="hidden sm:inline text-sm text-[var(--text-secondary)]">
                 {email}
               </span>
             )}
+            <ThemeToggle />
             <SignOutButton />
           </div>
         </div>

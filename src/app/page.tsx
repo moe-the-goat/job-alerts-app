@@ -27,7 +27,7 @@ export default async function Home() {
           {/* Pitch — centered, single visual focal point */}
           <div className="mx-auto max-w-3xl text-center">
             <p className="animate-fade-in inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--text-tertiary)]">
-              <span className="h-px w-6 bg-[var(--accent-500)]" />
+              <span className="h-px w-6 bg-[var(--highlight-400)]" />
               Private beta
             </p>
 
@@ -36,7 +36,7 @@ export default async function Home() {
               style={{ animationDelay: "80ms" }}
             >
               Read{" "}
-              <span className="text-[var(--accent-400)]">four</span> jobs a
+              <span className="text-[var(--highlight-500)]">four</span> jobs a
               morning, not four hundred.
             </h1>
 

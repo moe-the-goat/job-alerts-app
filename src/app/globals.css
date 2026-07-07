@@ -1,76 +1,250 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ */
-/*  Design tokens — Job Alerts.                                       */
-/*  Neutral, utilitarian dark UI: true greys (no warm cast), hairline */
-/*  borders, one cool blue accent used sparingly, zero glow.          */
+/*  Design tokens — Job Alerts · "First Light".                       */
+/*                                                                    */
+/*  The product works while you sleep and delivers at sunrise. So:    */
+/*  a calm, pre-dawn NAVY grounds the interface, and a single warm    */
+/*  SUNRISE AMBER is rationed for the moments the product delivers —  */
+/*  a match score, a pick, a highlight. Light is the default; a full  */
+/*  night-sky dark variant is built from the same tokens.             */
+/*                                                                    */
+/*  Palette values live ONCE in the --lt-* (light) and --dk-* (dark)  */
+/*  banks below; the active --token is mapped from one bank in four   */
+/*  small blocks (default light, system-dark media, and the two       */
+/*  explicit data-theme overrides) so a theme can never drift.        */
 /* ------------------------------------------------------------------ */
 
 :root {
-  /* Surfaces — neutral charcoals, NOT pure black.                    */
-  --bg-base:       #0e1116;
-  --bg-elevated:   #151a21;
-  --bg-overlay:    #1b212a;
-  --bg-hover:      #212833;
+  /* ===== LIGHT value bank ========================================= */
+  --lt-bg-base:       #f4f6fa;   /* cool morning mist                 */
+  --lt-bg-elevated:   #ffffff;   /* cards / raised surfaces           */
+  --lt-bg-overlay:    #eaeef4;   /* subtle fills, hover on light      */
+  --lt-bg-hover:      #e0e6ee;
+  --lt-border-subtle: rgba(31, 58, 95, 0.09);
+  --lt-border-muted:  rgba(31, 58, 95, 0.15);
+  --lt-border-strong: rgba(31, 58, 95, 0.26);
+  --lt-text-primary:   #1b2532;  /* deep navy-ink                     */
+  --lt-text-secondary-v: #566173;
+  --lt-text-tertiary:  #86909f;
+  --lt-text-disabled:  #b4bcc9;
+  /* Accent = NAVY (primary interactive: buttons, links, focus)       */
+  --lt-accent-50:  #eef2f8;
+  --lt-accent-200: #adbfd6;
+  --lt-accent-300: #7591b6;
+  --lt-accent-400: #3f6291;
+  --lt-accent-500: #1f3a5f;
+  --lt-accent-600: #182f4d;
+  --lt-accent-700: #12233a;
+  /* Highlight = SUNRISE AMBER (rationed: scores, picks, matches)     */
+  --lt-highlight-200: #f7cd9f;
+  --lt-highlight-300: #f0a862;
+  --lt-highlight-400: #e0801f;
+  --lt-highlight-500: #c76d16;
+  --lt-highlight-600: #a2570f;
+  --lt-success-400: #2e7d51;
+  --lt-success-500: #256843;
+  --lt-warning-400: #b5850f;
+  --lt-danger-400:  #cc4033;
+  --lt-danger-500:  #b3372b;
+  --lt-surface-recessed: #e7ecf3;
+  --lt-shadow-raised:
+    0 1px 2px rgba(31, 58, 95, 0.07),
+    0 1px 3px rgba(31, 58, 95, 0.05);
+  --lt-shadow-recessed:
+    inset 0 1px 2px rgba(31, 58, 95, 0.07);
+  --lt-shadow-overlay:
+    0 0 0 1px rgba(31, 58, 95, 0.07),
+    0 12px 28px -10px rgba(31, 58, 95, 0.20),
+    0 24px 52px -18px rgba(31, 58, 95, 0.18);
+  --lt-ring: rgba(31, 58, 95, 0.45);
+  --lt-selection-bg: #1f3a5f;
+  --lt-selection-fg: #f2f6fc;
+  --lt-color-scheme: light;
 
-  /* Borders — neutral hairlines, low contrast.                       */
-  --border-subtle: rgba(205, 217, 229, 0.07);
-  --border-muted:  rgba(205, 217, 229, 0.12);
-  --border-strong: rgba(205, 217, 229, 0.20);
+  /* ===== DARK value bank (night sky) ============================== */
+  --dk-bg-base:       #0f1626;   /* pre-dawn navy-black               */
+  --dk-bg-elevated:   #151f33;
+  --dk-bg-overlay:    #1c2942;
+  --dk-bg-hover:      #243350;
+  --dk-border-subtle: rgba(180, 200, 230, 0.08);
+  --dk-border-muted:  rgba(180, 200, 230, 0.14);
+  --dk-border-strong: rgba(180, 200, 230, 0.24);
+  --dk-text-primary:   #e9edf4;
+  --dk-text-secondary-v: #9fabc0;
+  --dk-text-tertiary:  #6b788f;
+  --dk-text-disabled:  #454f63;
+  /* Accent = navy lifted to steel-blue so it reads on the dark ground */
+  --dk-accent-50:  #dfe9f6;
+  --dk-accent-200: #b3ccea;
+  --dk-accent-300: #8fb0da;
+  --dk-accent-400: #6d92c4;
+  --dk-accent-500: #4f76ad;
+  --dk-accent-600: #3d5d8c;
+  --dk-accent-700: #2e496f;
+  /* Highlight = amber stays the single warm light                    */
+  --dk-highlight-200: #f7cd9f;
+  --dk-highlight-300: #f2a65a;
+  --dk-highlight-400: #e8842c;
+  --dk-highlight-500: #f09a45;
+  --dk-highlight-600: #cf7620;
+  --dk-success-400: #4caf7d;
+  --dk-success-500: #3f9a6c;
+  --dk-warning-400: #d8a13e;
+  --dk-danger-400:  #e5695d;
+  --dk-danger-500:  #cf5a4f;
+  --dk-surface-recessed: #0a0f1c;
+  --dk-shadow-raised:
+    0 1px 2px rgba(0, 0, 0, 0.4);
+  --dk-shadow-recessed:
+    inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  --dk-shadow-overlay:
+    0 0 0 1px rgba(180, 200, 230, 0.06),
+    0 12px 28px -8px rgba(0, 0, 0, 0.6),
+    0 24px 56px -16px rgba(0, 0, 0, 0.66);
+  --dk-ring: rgba(111, 146, 196, 0.55);
+  --dk-selection-bg: #4f76ad;
+  --dk-selection-fg: #f2f6fc;
+  --dk-color-scheme: dark;
 
-  /* Text — three-level hierarchy.                                    */
-  --text-primary:   #e6e9ee;
-  --text-secondary: #9aa3b0;
-  --text-tertiary:  #69727f;
-  --text-disabled:  #454c57;
-
-  /* Brand accent — one muted blue, used sparingly.                   */
-  --accent-50:  #eaf3ff;
-  --accent-200: #a8cdfb;
-  --accent-300: #79b1f7;
-  --accent-400: #539bf5;
-  --accent-500: #3b82e0;
-  --accent-600: #2c66b8;
-  --accent-700: #214e8e;
-
-  /* Functional state colors — muted, desaturated. Not neon SaaS.     */
-  --success-400: #57ab5a;
-  --success-500: #46954a;
-  --warning-400: #c69026;
-  --danger-400:  #e5534b;
-  --danger-500:  #cc4a42;
-
-  /* Semantic surfaces (Linear-style elevation language).             */
-  --surface-base:     var(--bg-base);
-  --surface-recessed: #0a0d11;
-  --surface-raised:   var(--bg-elevated);
-
-  /* Elevation — flat by default. A hairline and a whisper of depth;  */
-  /* only floating overlays (menus, palette) get a real shadow.       */
-  --shadow-raised:
-    0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-recessed:
-    0 1px 2px rgba(0, 0, 0, 0.45) inset;
-  --shadow-overlay:
-    0 0 0 1px rgba(205, 217, 229, 0.08),
-    0 8px 16px -6px rgba(0, 0, 0, 0.55),
-    0 20px 48px -12px rgba(0, 0, 0, 0.6);
-
-  /* Motion — one small scale, guarded by motion-safe at point of use. */
+  /* ===== Non-color tokens (theme-independent) ===================== */
   --motion-fast: 150ms;
   --motion-base: 200ms;
   --motion-slow: 250ms;
   --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
-
-  /* Focus ring — accent at low alpha. Visible, not glowing.          */
-  --ring: rgba(83, 155, 245, 0.5);
-
-  /* Radii.                                                           */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-full: 9999px;
+}
+
+/* ---- Active-token mapping. Light is the default. ----------------- */
+:root {
+  --bg-base:       var(--lt-bg-base);
+  --bg-elevated:   var(--lt-bg-elevated);
+  --bg-overlay:    var(--lt-bg-overlay);
+  --bg-hover:      var(--lt-bg-hover);
+  --border-subtle: var(--lt-border-subtle);
+  --border-muted:  var(--lt-border-muted);
+  --border-strong: var(--lt-border-strong);
+  --text-primary:   var(--lt-text-primary);
+  --text-secondary: var(--lt-text-secondary-v);
+  --text-tertiary:  var(--lt-text-tertiary);
+  --text-disabled:  var(--lt-text-disabled);
+  --accent-50:  var(--lt-accent-50);
+  --accent-200: var(--lt-accent-200);
+  --accent-300: var(--lt-accent-300);
+  --accent-400: var(--lt-accent-400);
+  --accent-500: var(--lt-accent-500);
+  --accent-600: var(--lt-accent-600);
+  --accent-700: var(--lt-accent-700);
+  --highlight-200: var(--lt-highlight-200);
+  --highlight-300: var(--lt-highlight-300);
+  --highlight-400: var(--lt-highlight-400);
+  --highlight-500: var(--lt-highlight-500);
+  --highlight-600: var(--lt-highlight-600);
+  --success-400: var(--lt-success-400);
+  --success-500: var(--lt-success-500);
+  --warning-400: var(--lt-warning-400);
+  --danger-400:  var(--lt-danger-400);
+  --danger-500:  var(--lt-danger-500);
+  --surface-base:     var(--lt-bg-base);
+  --surface-recessed: var(--lt-surface-recessed);
+  --surface-raised:   var(--lt-bg-elevated);
+  --shadow-raised:    var(--lt-shadow-raised);
+  --shadow-recessed:  var(--lt-shadow-recessed);
+  --shadow-overlay:   var(--lt-shadow-overlay);
+  --ring: var(--lt-ring);
+  --selection-bg: var(--lt-selection-bg);
+  --selection-fg: var(--lt-selection-fg);
+  color-scheme: var(--lt-color-scheme);
+}
+
+/* Light is the default for EVERYONE on first visit — we intentionally do NOT
+ * follow the OS's prefers-color-scheme, so a device set to dark still opens
+ * light. Dark is opt-in via the toggle (persisted in localStorage and applied
+ * pre-paint as data-theme="dark"). The two explicit overrides below carry it. */
+:root[data-theme="light"] {
+  --bg-base:       var(--lt-bg-base);
+  --bg-elevated:   var(--lt-bg-elevated);
+  --bg-overlay:    var(--lt-bg-overlay);
+  --bg-hover:      var(--lt-bg-hover);
+  --border-subtle: var(--lt-border-subtle);
+  --border-muted:  var(--lt-border-muted);
+  --border-strong: var(--lt-border-strong);
+  --text-primary:   var(--lt-text-primary);
+  --text-secondary: var(--lt-text-secondary-v);
+  --text-tertiary:  var(--lt-text-tertiary);
+  --text-disabled:  var(--lt-text-disabled);
+  --accent-50:  var(--lt-accent-50);
+  --accent-200: var(--lt-accent-200);
+  --accent-300: var(--lt-accent-300);
+  --accent-400: var(--lt-accent-400);
+  --accent-500: var(--lt-accent-500);
+  --accent-600: var(--lt-accent-600);
+  --accent-700: var(--lt-accent-700);
+  --highlight-200: var(--lt-highlight-200);
+  --highlight-300: var(--lt-highlight-300);
+  --highlight-400: var(--lt-highlight-400);
+  --highlight-500: var(--lt-highlight-500);
+  --highlight-600: var(--lt-highlight-600);
+  --success-400: var(--lt-success-400);
+  --success-500: var(--lt-success-500);
+  --warning-400: var(--lt-warning-400);
+  --danger-400:  var(--lt-danger-400);
+  --danger-500:  var(--lt-danger-500);
+  --surface-base:     var(--lt-bg-base);
+  --surface-recessed: var(--lt-surface-recessed);
+  --surface-raised:   var(--lt-bg-elevated);
+  --shadow-raised:    var(--lt-shadow-raised);
+  --shadow-recessed:  var(--lt-shadow-recessed);
+  --shadow-overlay:   var(--lt-shadow-overlay);
+  --ring: var(--lt-ring);
+  --selection-bg: var(--lt-selection-bg);
+  --selection-fg: var(--lt-selection-fg);
+  color-scheme: var(--lt-color-scheme);
+}
+
+:root[data-theme="dark"] {
+  --bg-base:       var(--dk-bg-base);
+  --bg-elevated:   var(--dk-bg-elevated);
+  --bg-overlay:    var(--dk-bg-overlay);
+  --bg-hover:      var(--dk-bg-hover);
+  --border-subtle: var(--dk-border-subtle);
+  --border-muted:  var(--dk-border-muted);
+  --border-strong: var(--dk-border-strong);
+  --text-primary:   var(--dk-text-primary);
+  --text-secondary: var(--dk-text-secondary-v);
+  --text-tertiary:  var(--dk-text-tertiary);
+  --text-disabled:  var(--dk-text-disabled);
+  --accent-50:  var(--dk-accent-50);
+  --accent-200: var(--dk-accent-200);
+  --accent-300: var(--dk-accent-300);
+  --accent-400: var(--dk-accent-400);
+  --accent-500: var(--dk-accent-500);
+  --accent-600: var(--dk-accent-600);
+  --accent-700: var(--dk-accent-700);
+  --highlight-200: var(--dk-highlight-200);
+  --highlight-300: var(--dk-highlight-300);
+  --highlight-400: var(--dk-highlight-400);
+  --highlight-500: var(--dk-highlight-500);
+  --highlight-600: var(--dk-highlight-600);
+  --success-400: var(--dk-success-400);
+  --success-500: var(--dk-success-500);
+  --warning-400: var(--dk-warning-400);
+  --danger-400:  var(--dk-danger-400);
+  --danger-500:  var(--dk-danger-500);
+  --surface-base:     var(--dk-bg-base);
+  --surface-recessed: var(--dk-surface-recessed);
+  --surface-raised:   var(--dk-bg-elevated);
+  --shadow-raised:    var(--dk-shadow-raised);
+  --shadow-recessed:  var(--dk-shadow-recessed);
+  --shadow-overlay:   var(--dk-shadow-overlay);
+  --ring: var(--dk-ring);
+  --selection-bg: var(--dk-selection-bg);
+  --selection-fg: var(--dk-selection-fg);
+  color-scheme: var(--dk-color-scheme);
 }
 
 @theme inline {
@@ -96,6 +270,12 @@
   --color-accent-500:   var(--accent-500);
   --color-accent-600:   var(--accent-600);
   --color-accent-700:   var(--accent-700);
+
+  --color-highlight-200: var(--highlight-200);
+  --color-highlight-300: var(--highlight-300);
+  --color-highlight-400: var(--highlight-400);
+  --color-highlight-500: var(--highlight-500);
+  --color-highlight-600: var(--highlight-600);
 
   --color-success:      var(--success-400);
   --color-danger:       var(--danger-400);
@@ -128,7 +308,6 @@
 
 html {
   background: var(--bg-base);
-  color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -142,8 +321,8 @@ body {
 }
 
 ::selection {
-  background: var(--accent-600);
-  color: #f2f7ff;
+  background: var(--selection-bg);
+  color: var(--selection-fg);
 }
 
 input,

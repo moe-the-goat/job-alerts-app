@@ -70,7 +70,7 @@ export function DashboardPreview() {
                   {job.company} · {job.location}
                 </div>
                 <div className="mt-1 text-[11.5px] text-[var(--text-tertiary)]">
-                  <span className="text-[var(--accent-400)]">▸</span>{" "}
+                  <span className="text-[var(--highlight-500)]">▸</span>{" "}
                   {job.match}
                 </div>
 
@@ -111,13 +111,15 @@ function ActionChip({
 }
 
 function ScorePill({ score }: { score: number }) {
+  // Matches the email preview: the top pick glows sunrise amber, the rest stay
+  // neutral so the warm note stays rationed.
   const strong = score >= 90;
   return (
     <div
       className={
-        "flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-[12.5px] font-medium " +
+        "flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-[12.5px] font-semibold " +
         (strong
-          ? "bg-[var(--accent-500)]/12 text-[var(--accent-300)] ring-1 ring-inset ring-[var(--accent-500)]/30"
+          ? "bg-[var(--highlight-400)]/14 text-[var(--highlight-500)] ring-1 ring-inset ring-[var(--highlight-400)]/35"
           : "bg-[var(--bg-overlay)] text-[var(--text-secondary)] ring-1 ring-inset ring-[var(--border-muted)]")
       }
     >

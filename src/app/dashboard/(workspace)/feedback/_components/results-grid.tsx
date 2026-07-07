@@ -385,7 +385,7 @@ function Row({
           onMouseEnter={onFocusRow}
           data-focused={focused || undefined}
           className={cn(
-            "grid cursor-pointer items-center gap-x-3 border-b border-[rgba(205,217,229,0.05)] px-2 py-[7px]",
+            "grid cursor-pointer items-center gap-x-3 border-b border-[var(--border-subtle)] px-2 py-[7px]",
             "grid-cols-[auto_minmax(0,1fr)_auto] @[480px]:grid-cols-[auto_minmax(0,1.8fr)_minmax(0,1fr)_auto] @[680px]:grid-cols-[auto_minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto]",
             "transition-colors duration-150",
             focused ? "bg-[var(--bg-hover)]" : "hover:bg-[var(--bg-elevated)]",
@@ -515,7 +515,7 @@ function RowDetail({
 
   return (
     <div
-      className="row-detail-enter border-b border-[rgba(205,217,229,0.05)] bg-[var(--surface-recessed)]/60 px-3 py-3"
+      className="row-detail-enter border-b border-[var(--border-subtle)] bg-[var(--surface-recessed)]/60 px-3 py-3"
       data-testid={`row-detail-${job.id}`}
     >
       {/* The single most important action on an expanded job — reading the

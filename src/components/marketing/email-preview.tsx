@@ -1,3 +1,4 @@
+import { LogoMark } from "@/components/brand/logo";
 import { SAMPLE_PICKS } from "./sample-picks";
 
 /**
@@ -20,11 +21,13 @@ export function EmailPreview() {
           faux client chrome around it. */}
       <header className="space-y-3 px-5 pt-5 pb-4">
         <div className="flex items-start gap-3">
-          {/* Sender avatar — the brand mark in miniature */}
+          {/* Sender avatar — the actual brand mark in miniature */}
           <div
             aria-hidden
-            className="h-9 w-9 shrink-0 rounded-md bg-[var(--accent-500)] ring-1 ring-inset ring-white/15"
-          />
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--bg-overlay)] ring-1 ring-inset ring-[var(--border-muted)]"
+          >
+            <LogoMark className="h-5 w-5" />
+          </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline justify-between gap-2">
               <span className="truncate text-[13.5px] font-medium text-[var(--text-primary)]">
@@ -74,7 +77,7 @@ export function EmailPreview() {
                     {job.company} · {job.location}
                   </div>
                   <div className="mt-1 text-[11.5px] text-[var(--text-tertiary)]">
-                    <span className="text-[var(--accent-400)]">▸</span>{" "}
+                    <span className="text-[var(--highlight-500)]">▸</span>{" "}
                     {job.match}
                   </div>
                 </div>
@@ -98,13 +101,16 @@ export function EmailPreview() {
 }
 
 function ScorePill({ score }: { score: number }) {
+  // The top pick glows in the sunrise amber — First Light's one warm note,
+  // reserved for the moment the product delivers. Lesser scores stay neutral
+  // so the amber keeps its meaning.
   const strong = score >= 90;
   return (
     <div
       className={
-        "flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-[12.5px] font-medium " +
+        "flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-[12.5px] font-semibold " +
         (strong
-          ? "bg-[var(--accent-500)]/12 text-[var(--accent-300)] ring-1 ring-inset ring-[var(--accent-500)]/30"
+          ? "bg-[var(--highlight-400)]/14 text-[var(--highlight-500)] ring-1 ring-inset ring-[var(--highlight-400)]/35"
           : "bg-[var(--bg-overlay)] text-[var(--text-secondary)] ring-1 ring-inset ring-[var(--border-muted)]")
       }
     >

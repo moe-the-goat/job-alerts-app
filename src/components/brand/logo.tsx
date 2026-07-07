@@ -23,18 +23,9 @@ export function Logo({ size = "md", href = "/", className }: LogoProps) {
         className,
       )}
     >
-      <span
-        aria-hidden
-        className={cn(
-          "relative inline-block",
-          s.mark,
-          "rounded-md bg-[var(--accent-500)]",
-        )}
-      >
-        <span className="absolute inset-0 rounded-md ring-1 ring-inset ring-white/15" />
-      </span>
+      <LogoMark className={s.mark} />
       <span>
-        job<span className="text-[var(--text-secondary)]">·</span>alerts
+        job<span className="text-[var(--highlight-400)]">·</span>alerts
       </span>
     </span>
   );
@@ -47,5 +38,41 @@ export function Logo({ size = "md", href = "/", className }: LogoProps) {
     >
       {inner}
     </Link>
+  );
+}
+
+/**
+ * The mark: a sun rising over an inbox tray — "your morning, delivered".
+ * The tray + horizon are drawn in the navy accent; the sun is the one warm
+ * amber note. Scales cleanly down to a 16px favicon.
+ */
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={cn("shrink-0", className)}
+      fill="none"
+    >
+      {/* rising sun */}
+      <circle cx="12" cy="11" r="3.1" fill="var(--highlight-400)" />
+      <g
+        stroke="var(--highlight-400)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      >
+        <line x1="12" y1="4.4" x2="12" y2="5.9" />
+        <line x1="6.7" y1="5.7" x2="7.7" y2="6.8" />
+        <line x1="16.3" y1="5.7" x2="15.3" y2="6.8" />
+      </g>
+      {/* inbox tray catching it */}
+      <path
+        d="M4 13.5h4l1.4 2.1h5.2L16 13.5h4v4.2a1.3 1.3 0 0 1-1.3 1.3H5.3A1.3 1.3 0 0 1 4 17.7z"
+        fill="none"
+        stroke="var(--accent-500)"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

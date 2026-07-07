@@ -16,10 +16,15 @@ export interface MatchScoreProps {
 
 const SEGMENTS = 5;
 
-/** Heatmap: green = strong, yellow = middling, red = weak. */
+/**
+ * First Light score language: a strong match glows in the sunrise amber (the
+ * product delivered a real pick), a decent one reads in the calm navy accent,
+ * and a weak one in danger red. Amber-for-strong is the brand's positive
+ * signal — distinct from the semantic "warning" amber used for cautions.
+ */
 function scoreColor(score: number): string {
-  if (score >= 80) return "var(--success-400)";
-  if (score >= 60) return "var(--warning-400)";
+  if (score >= 80) return "var(--highlight-500)";
+  if (score >= 60) return "var(--accent-400)";
   return "var(--danger-400)";
 }
 
@@ -83,8 +88,7 @@ export function MatchScore({
             data-filled={i < filled}
             className="h-[10px] w-[3px] rounded-full transition-colors duration-150"
             style={{
-              background:
-                i < filled ? color : "rgba(205, 217, 229, 0.11)",
+              background: i < filled ? color : "var(--border-strong)",
             }}
           />
         ))}
@@ -104,7 +108,7 @@ export function MatchScore({
                 {label}
               </span>
               <span
-                className="inline-block h-[4px] w-14 overflow-hidden rounded-full bg-[rgba(205,217,229,0.09)]"
+                className="inline-block h-[4px] w-14 overflow-hidden rounded-full bg-[var(--bg-overlay)]"
                 aria-hidden
               >
                 <span

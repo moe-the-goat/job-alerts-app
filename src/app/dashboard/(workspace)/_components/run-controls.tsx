@@ -374,7 +374,7 @@ function RescheduleDialog({
             type="datetime-local"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            className="w-full rounded-md border border-[var(--border-muted)] bg-[var(--bg-overlay)] px-2.5 py-1.5 text-[13px] text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] [color-scheme:dark]"
+            className="w-full rounded-md border border-[var(--border-muted)] bg-[var(--bg-overlay)] px-2.5 py-1.5 text-[13px] text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           />
         </label>
 
