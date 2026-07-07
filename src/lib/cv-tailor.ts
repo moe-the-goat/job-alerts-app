@@ -148,27 +148,40 @@ RULES:
 5. Output must be valid JSON and nothing else.`;
 }
 
-/** One Groq chat call. Throws on transport/HTTP errors; returns the text. */
+/**
+ * One Groq chat call. Throws on transport/HTTP errors; returns the text.
+ *
+ * gpt-oss-120b is a REASONING model. By default Groq returns its chain-of-
+ * thought INSIDE message.content (wrapped in <think> tags) — which pollutes
+ * the answer with stray prose and braces and truncates the real output. So we
+ * force `reasoning_format: "hidden"`: the model still reasons (kept minimal via
+ * `reasoning_effort: "low"`) but message.content is only the final answer.
+ * With `jsonMode`, we also switch on JSON mode so the draft comes back as clean,
+ * parseable JSON (Groq requires reasoning_format to be hidden/parsed for that).
+ */
 export async function callTailorLlm(
   prompt: string,
   apiKey: string,
   maxTokens: number,
+  jsonMode = false,
 ): Promise<string> {
+  const body: Record<string, unknown> = {
+    model: TAILOR_MODEL,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.4,
+    max_tokens: maxTokens,
+    reasoning_effort: "low",
+    reasoning_format: "hidden",
+  };
+  if (jsonMode) body.response_format = { type: "json_object" };
+
   const res = await fetch(GROQ_CHAT_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: TAILOR_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.4,
-      max_tokens: maxTokens,
-      // gpt-oss is a reasoning model — keep hidden reasoning minimal so the
-      // budget goes to the answer (same taming as the worker's paths).
-      reasoning_effort: "low",
-    }),
+    body: JSON.stringify(body),
     cache: "no-store",
   });
   if (!res.ok) {

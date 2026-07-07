@@ -75,7 +75,7 @@ describe("prompt builders", () => {
 describe("callTailorLlm", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("posts to Groq with the tailor model and returns the content", async () => {
+  it("posts to Groq with the tailor model, hidden reasoning, and returns the content", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ choices: [{ message: { content: "  TAILORED  " } }] }),
@@ -90,6 +90,23 @@ describe("callTailorLlm", () => {
     expect(body.model).toBe(TAILOR_MODEL);
     expect(body.max_tokens).toBe(1024);
     expect(body.reasoning_effort).toBe("low");
+    // gpt-oss reasoning must stay OUT of message.content, or the answer is
+    // polluted/truncated. No JSON mode unless asked.
+    expect(body.reasoning_format).toBe("hidden");
+    expect(body.response_format).toBeUndefined();
+  });
+
+  it("switches on JSON mode when asked (for the structured CV draft)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: "{}" } }] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await callTailorLlm("prompt", "gk_test", 4096, true);
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.response_format).toEqual({ type: "json_object" });
+    expect(body.reasoning_format).toBe("hidden"); // required for JSON mode
   });
 
   it("throws on an HTTP error and on an empty response", async () => {
