@@ -181,7 +181,7 @@ export function ContextMenu({
           className={cn(
             "row-detail-enter fixed z-50 min-w-[210px] rounded-lg p-1 outline-none",
             "bg-[var(--bg-overlay)]/90 backdrop-blur-md",
-            "ring-1 ring-inset ring-[rgba(205,217,229,0.09)]",
+            "ring-1 ring-inset ring-[var(--border-muted)]",
             "shadow-[var(--shadow-overlay)]",
           )}
           style={{ left: menu.x, top: menu.y }}

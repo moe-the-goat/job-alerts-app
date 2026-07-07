@@ -130,7 +130,9 @@ function Metric({
       <dd
         className={[
           "mt-0.5 font-mono text-[14px] font-medium",
-          accent ? "text-[var(--accent-400)]" : "text-[var(--text-primary)]",
+          // The picks the run delivered glow in the sunrise amber — the same
+          // "product delivered" note used on the scores and the landing.
+          accent ? "text-[var(--highlight-500)]" : "text-[var(--text-primary)]",
         ].join(" ")}
       >
         {value.toLocaleString()}

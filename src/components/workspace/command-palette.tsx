@@ -253,7 +253,7 @@ export function CommandPalette() {
         className={cn(
           "row-detail-enter w-full max-w-xl overflow-hidden rounded-xl",
           "bg-[var(--bg-overlay)]/92 backdrop-blur-xl",
-          "ring-1 ring-inset ring-[rgba(205,217,229,0.10)]",
+          "ring-1 ring-inset ring-[var(--border-muted)]",
           "shadow-[var(--shadow-overlay)]",
         )}
       >
