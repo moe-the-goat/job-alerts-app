@@ -142,17 +142,17 @@ const PAGE_W = 794;
 const PAGE_H = 1123;
 
 /** Template picker with a LIVE preview of the selected template, plus a
- *  fixed-position download. "Download" opens the rendered CV in a print window
- *  so the browser's own "Save as PDF" produces the file — zero cost, and keeps
- *  the exact one-page layout. */
+ *  fixed-position download. "Download" prints the preview iframe directly —
+ *  no new window (so nothing to un-block) — and the browser's own "Save as
+ *  PDF" produces the file at the template's exact one-page layout. */
 function DownloadBar({ cv }: { cv: TailoredCv }) {
   const [template, setTemplate] = React.useState<CvTemplateId>(DEFAULT_TEMPLATE);
-  const [blocked, setBlocked] = React.useState(false);
   const frameRef = React.useRef<HTMLDivElement>(null);
+  const iframeRef = React.useRef<HTMLIFrameElement>(null);
   const [scale, setScale] = React.useState(0.4);
 
-  // The document for the chosen template — reused by both the preview and the
-  // print window so they can never disagree.
+  // The document for the chosen template — the preview iframe and the print
+  // both use it, so what you see is exactly what prints.
   const html = React.useMemo(() => renderCvHtml(template, cv), [template, cv]);
 
   // Scale the full A4 page to the panel's width so the whole CV shows.
@@ -168,24 +168,17 @@ function DownloadBar({ cv }: { cv: TailoredCv }) {
   }, []);
 
   function download() {
-    setBlocked(false);
-    const w = window.open("", "_blank", "width=840,height=1100");
-    if (!w) {
-      setBlocked(true);
-      return;
+    // Print the preview iframe's document directly. The CSS transform only
+    // scales how it LOOKS in the panel; printing uses the document's own A4
+    // @page, so the output is full size. No window.open ⇒ no pop-up blocker.
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    try {
+      win.focus();
+      win.print();
+    } catch {
+      /* extremely rare — the live preview is right there to print manually */
     }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    // Give the new document a beat to lay out before invoking print.
-    window.setTimeout(() => {
-      try {
-        w.print();
-      } catch {
-        /* user can still print manually from the opened window */
-      }
-    }, 450);
   }
 
   const active = CV_TEMPLATES.find((t) => t.id === template);
@@ -225,6 +218,7 @@ function DownloadBar({ cv }: { cv: TailoredCv }) {
         style={{ height: Math.round(PAGE_H * scale) }}
       >
         <iframe
+          ref={iframeRef}
           title={`${active?.label} template preview`}
           srcDoc={html}
           scrolling="no"
@@ -243,7 +237,7 @@ function DownloadBar({ cv }: { cv: TailoredCv }) {
 
       {/* Row 3: description — its own line, so its length never moves the button */}
       <p className="mt-2 text-[10.5px] leading-relaxed text-[var(--text-tertiary)]">
-        {active?.description} Opens in a new tab — choose “Save as PDF”.
+        {active?.description} Opens your print dialog — choose “Save as PDF”.
       </p>
 
       {/* Row 4: download — always in the same place */}
@@ -257,12 +251,6 @@ function DownloadBar({ cv }: { cv: TailoredCv }) {
           Download {active?.label} PDF
         </button>
       </div>
-
-      {blocked && (
-        <p className="mt-1.5 text-right text-[10.5px] text-[var(--danger-400)]">
-          Your browser blocked the pop-up. Allow pop-ups for this site, then try again.
-        </p>
-      )}
     </div>
   );
 }
