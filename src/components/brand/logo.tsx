@@ -46,7 +46,7 @@ export function Logo({ size = "md", href = "/", className }: LogoProps) {
  * The tray + horizon are drawn in the navy accent; the sun is the one warm
  * amber note. Scales cleanly down to a 16px favicon.
  */
-function LogoMark({ className }: { className?: string }) {
+export function LogoMark({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
