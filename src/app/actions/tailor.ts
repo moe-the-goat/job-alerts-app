@@ -137,7 +137,7 @@ export async function tailorCvAction(
   try {
     content =
       mode === "recreate"
-        ? await callTailorLlm(buildRecreateStructuredPrompt(fullCv, tailorJob), apiKey, RECREATE_MAX_TOKENS)
+        ? await callTailorLlm(buildRecreateStructuredPrompt(fullCv, tailorJob), apiKey, RECREATE_MAX_TOKENS, true)
         : await callTailorLlm(buildSuggestionsPrompt(fullCv, tailorJob), apiKey, SUGGESTIONS_MAX_TOKENS);
   } catch {
     return { ok: false, error: "The tailoring service is busy right now. Try again in a minute." };
