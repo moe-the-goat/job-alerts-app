@@ -136,16 +136,39 @@ export function CvTailorPanel({ jobResultId }: { jobResultId: number }) {
   );
 }
 
-/** Template picker + PDF download for a structured tailored CV. Opens the
- *  rendered CV in a print window so the browser's own "Save as PDF" produces
- *  the file — zero cost, and keeps the exact one-page layout of the template. */
+// A4 at 96dpi — the natural pixel size of the rendered CV page. The live
+// preview renders at this size and is scaled down to fit the panel.
+const PAGE_W = 794;
+const PAGE_H = 1123;
+
+/** Template picker with a LIVE preview of the selected template, plus a
+ *  fixed-position download. "Download" opens the rendered CV in a print window
+ *  so the browser's own "Save as PDF" produces the file — zero cost, and keeps
+ *  the exact one-page layout. */
 function DownloadBar({ cv }: { cv: TailoredCv }) {
   const [template, setTemplate] = React.useState<CvTemplateId>(DEFAULT_TEMPLATE);
   const [blocked, setBlocked] = React.useState(false);
+  const frameRef = React.useRef<HTMLDivElement>(null);
+  const [scale, setScale] = React.useState(0.4);
+
+  // The document for the chosen template — reused by both the preview and the
+  // print window so they can never disagree.
+  const html = React.useMemo(() => renderCvHtml(template, cv), [template, cv]);
+
+  // Scale the full A4 page to the panel's width so the whole CV shows.
+  React.useEffect(() => {
+    const el = frameRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      if (w > 0) setScale(w / PAGE_W);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   function download() {
     setBlocked(false);
-    const html = renderCvHtml(template, cv);
     const w = window.open("", "_blank", "width=840,height=1100");
     if (!w) {
       setBlocked(true);
@@ -169,6 +192,7 @@ function DownloadBar({ cv }: { cv: TailoredCv }) {
 
   return (
     <div className="mt-2.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-overlay)]/50 p-2.5">
+      {/* Row 1: label + template tabs */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-[10.5px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
           Download as PDF
@@ -194,10 +218,36 @@ function DownloadBar({ cv }: { cv: TailoredCv }) {
         </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[10.5px] text-[var(--text-tertiary)]">
-          {active?.description} It opens in a new tab — choose “Save as PDF”.
-        </span>
+      {/* Row 2: live preview of the selected template (the real CV, scaled) */}
+      <div
+        ref={frameRef}
+        className="mt-2 overflow-hidden rounded-md border border-[var(--border-muted)] bg-white"
+        style={{ height: Math.round(PAGE_H * scale) }}
+      >
+        <iframe
+          title={`${active?.label} template preview`}
+          srcDoc={html}
+          scrolling="no"
+          tabIndex={-1}
+          aria-hidden="true"
+          style={{
+            width: PAGE_W,
+            height: PAGE_H,
+            border: 0,
+            transformOrigin: "top left",
+            transform: `scale(${scale})`,
+            pointerEvents: "none",
+          }}
+        />
+      </div>
+
+      {/* Row 3: description — its own line, so its length never moves the button */}
+      <p className="mt-2 text-[10.5px] leading-relaxed text-[var(--text-tertiary)]">
+        {active?.description} Opens in a new tab — choose “Save as PDF”.
+      </p>
+
+      {/* Row 4: download — always in the same place */}
+      <div className="mt-2 flex justify-end">
         <button
           type="button"
           onClick={download}
@@ -209,7 +259,7 @@ function DownloadBar({ cv }: { cv: TailoredCv }) {
       </div>
 
       {blocked && (
-        <p className="mt-1.5 text-[10.5px] text-[var(--danger-400)]">
+        <p className="mt-1.5 text-right text-[10.5px] text-[var(--danger-400)]">
           Your browser blocked the pop-up. Allow pop-ups for this site, then try again.
         </p>
       )}
