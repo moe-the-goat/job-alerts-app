@@ -24,6 +24,11 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://job-alerts-app-three.vercel.app"),
 };
 
+// Runs before first paint: applies a saved theme choice so there's no flash of
+// the wrong theme on load. With no saved choice it does nothing and the CSS
+// default takes over (light, with a prefers-color-scheme:dark fallback).
+const THEME_INIT = `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -32,8 +37,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+      </head>
       <body className="min-h-full">{children}</body>
     </html>
   );
