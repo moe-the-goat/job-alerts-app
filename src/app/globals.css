@@ -161,51 +161,10 @@
   color-scheme: var(--lt-color-scheme);
 }
 
-/* System dark, unless the user has explicitly chosen light. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg-base:       var(--dk-bg-base);
-    --bg-elevated:   var(--dk-bg-elevated);
-    --bg-overlay:    var(--dk-bg-overlay);
-    --bg-hover:      var(--dk-bg-hover);
-    --border-subtle: var(--dk-border-subtle);
-    --border-muted:  var(--dk-border-muted);
-    --border-strong: var(--dk-border-strong);
-    --text-primary:   var(--dk-text-primary);
-    --text-secondary: var(--dk-text-secondary-v);
-    --text-tertiary:  var(--dk-text-tertiary);
-    --text-disabled:  var(--dk-text-disabled);
-    --accent-50:  var(--dk-accent-50);
-    --accent-200: var(--dk-accent-200);
-    --accent-300: var(--dk-accent-300);
-    --accent-400: var(--dk-accent-400);
-    --accent-500: var(--dk-accent-500);
-    --accent-600: var(--dk-accent-600);
-    --accent-700: var(--dk-accent-700);
-    --highlight-200: var(--dk-highlight-200);
-    --highlight-300: var(--dk-highlight-300);
-    --highlight-400: var(--dk-highlight-400);
-    --highlight-500: var(--dk-highlight-500);
-    --highlight-600: var(--dk-highlight-600);
-    --success-400: var(--dk-success-400);
-    --success-500: var(--dk-success-500);
-    --warning-400: var(--dk-warning-400);
-    --danger-400:  var(--dk-danger-400);
-    --danger-500:  var(--dk-danger-500);
-    --surface-base:     var(--dk-bg-base);
-    --surface-recessed: var(--dk-surface-recessed);
-    --surface-raised:   var(--dk-bg-elevated);
-    --shadow-raised:    var(--dk-shadow-raised);
-    --shadow-recessed:  var(--dk-shadow-recessed);
-    --shadow-overlay:   var(--dk-shadow-overlay);
-    --ring: var(--dk-ring);
-    --selection-bg: var(--dk-selection-bg);
-    --selection-fg: var(--dk-selection-fg);
-    color-scheme: var(--dk-color-scheme);
-  }
-}
-
-/* Explicit toggle wins in both directions (higher specificity). */
+/* Light is the default for EVERYONE on first visit — we intentionally do NOT
+ * follow the OS's prefers-color-scheme, so a device set to dark still opens
+ * light. Dark is opt-in via the toggle (persisted in localStorage and applied
+ * pre-paint as data-theme="dark"). The two explicit overrides below carry it. */
 :root[data-theme="light"] {
   --bg-base:       var(--lt-bg-base);
   --bg-elevated:   var(--lt-bg-elevated);

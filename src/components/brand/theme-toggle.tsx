@@ -10,20 +10,18 @@ import { Moon, Sun } from "lucide-react";
  * DOM/system via useSyncExternalStore — the right tool for external mutable
  * state, and it keeps SSR + hydration consistent without setState-in-effect.
  */
+// Light is the app default, so an unset data-theme means light — we don't
+// read prefers-color-scheme here (it would mislabel the toggle on a dark-OS
+// machine where the app is actually showing light).
 function getSnapshot(): "light" | "dark" {
-  const explicit = document.documentElement.getAttribute("data-theme");
-  if (explicit === "light" || explicit === "dark") return explicit;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return document.documentElement.getAttribute("data-theme") === "dark"
+    ? "dark"
+    : "light";
 }
 
 function subscribe(onChange: () => void): () => void {
-  const mq = window.matchMedia("(prefers-color-scheme: dark)");
-  mq.addEventListener("change", onChange);
   window.addEventListener("themechange", onChange);
-  return () => {
-    mq.removeEventListener("change", onChange);
-    window.removeEventListener("themechange", onChange);
-  };
+  return () => window.removeEventListener("themechange", onChange);
 }
 
 export function ThemeToggle({ className }: { className?: string }) {
