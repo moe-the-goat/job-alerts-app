@@ -16,7 +16,7 @@ import {
   MAX_SUGGESTIONS_PER_DAY,
   RECREATE_MAX_TOKENS,
   SUGGESTIONS_MAX_TOKENS,
-  buildRecreatePrompt,
+  buildRecreateStructuredPrompt,
   buildSuggestionsPrompt,
   callTailorLlm,
   cvHash,
@@ -132,11 +132,12 @@ export async function tailorCvAction(
     description: job.description_excerpt ?? "",
     verdict: job.ai_verdict ?? "",
   };
+  // recreate → structured JSON the templates render; suggestions → plain text.
   let content: string;
   try {
     content =
       mode === "recreate"
-        ? await callTailorLlm(buildRecreatePrompt(fullCv, tailorJob), apiKey, RECREATE_MAX_TOKENS)
+        ? await callTailorLlm(buildRecreateStructuredPrompt(fullCv, tailorJob), apiKey, RECREATE_MAX_TOKENS)
         : await callTailorLlm(buildSuggestionsPrompt(fullCv, tailorJob), apiKey, SUGGESTIONS_MAX_TOKENS);
   } catch {
     return { ok: false, error: "The tailoring service is busy right now. Try again in a minute." };
