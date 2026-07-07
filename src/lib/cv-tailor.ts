@@ -108,6 +108,46 @@ Rules:
 6. Output plain text only (section headings + bullets), ready to paste into their document. No commentary before or after.`;
 }
 
+// Structured variant of the recreate prompt: same grounding rules, but the
+// model returns a JSON CV that our templates render (see cv-templates.ts).
+// Keeping the shape explicit in the prompt is what makes the templates
+// interchangeable — one generation, any template.
+export function buildRecreateStructuredPrompt(cvText: string, job: TailorJob): string {
+  return `You are a precise CV writer. Rebuild the candidate's CV as STRUCTURED JSON, targeting ONE specific job, using ONLY what is already in their CV.
+
+CANDIDATE CV (may include a PUBLIC GITHUB PROJECTS section):
+${(cvText ?? "").slice(0, RECREATE_CV_CHARS)}
+
+TARGET JOB:
+- Title: ${job.title}
+- Company: ${job.company}
+- Posting excerpt: ${(job.description ?? "").slice(0, JOB_DESC_CHARS)}
+
+Return ONLY a JSON object (no markdown, no prose) with EXACTLY this shape:
+{
+  "name": "string",
+  "headline": "short professional title, e.g. the target role — only if the CV supports it",
+  "contact": { "location": "string?", "phone": "string?", "email": "string?",
+               "links": [ { "label": "e.g. github.com/you", "url": "https://..." } ] },
+  "summary": "one or two sentences, tailored to this job, drawn only from real experience",
+  "sections": [
+    { "kind": "skills", "heading": "Technical Skills",
+      "skills": [ { "label": "Languages", "value": "Python, ..." } ] },
+    { "kind": "entries", "heading": "Projects",
+      "entries": [ { "title": "string", "subtitle": "employer/school?", "meta": "location/GPA?",
+                     "date": "string?", "tech": "tech stack line?", "bullets": ["string"] } ] },
+    { "kind": "list", "heading": "Certifications", "items": ["string"] }
+  ]
+}
+
+RULES:
+1. Preserve the candidate's real section order and structure (summary, skills, projects/experience, education, certifications — include only the ones they actually have).
+2. Fit ONE PAGE of content: tighten wording, lead each section and bullet with what THIS job cares about, drop or compress what it doesn't.
+3. Rephrase to mirror the posting's terminology ONLY where the CV genuinely supports it.
+4. HARD RULE: never invent experience, employers, dates, numbers, tools, links, or projects that are not in the CV text above. Copy real details faithfully; if something isn't there, leave the field out.
+5. Output must be valid JSON and nothing else.`;
+}
+
 /** One Groq chat call. Throws on transport/HTTP errors; returns the text. */
 export async function callTailorLlm(
   prompt: string,
