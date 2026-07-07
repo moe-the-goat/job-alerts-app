@@ -42,9 +42,9 @@ export function Logo({ size = "md", href = "/", className }: LogoProps) {
 }
 
 /**
- * The mark: a sun rising over an inbox tray — "your morning, delivered".
- * The tray + horizon are drawn in the navy accent; the sun is the one warm
- * amber note. Scales cleanly down to a 16px favicon.
+ * The mark: a lowercase "j" whose dot is a rising sun — a monogram for
+ * job·alerts that reads as a letter and a sunrise at once, echoing the amber
+ * "·" in the wordmark. Navy stem, one warm amber sun. Scales to a favicon.
  */
 export function LogoMark({ className }: { className?: string }) {
   return (
@@ -54,24 +54,20 @@ export function LogoMark({ className }: { className?: string }) {
       className={cn("shrink-0", className)}
       fill="none"
     >
-      {/* rising sun */}
-      <circle cx="12" cy="11" r="3.1" fill="var(--highlight-400)" />
-      <g
-        stroke="var(--highlight-400)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      >
-        <line x1="12" y1="4.4" x2="12" y2="5.9" />
-        <line x1="6.7" y1="5.7" x2="7.7" y2="6.8" />
-        <line x1="16.3" y1="5.7" x2="15.3" y2="6.8" />
+      {/* the rising-sun dot */}
+      <circle cx="14" cy="6" r="2.35" fill="var(--highlight-400)" />
+      <g stroke="var(--highlight-400)" strokeWidth="1.3" strokeLinecap="round">
+        <line x1="14" y1="1.9" x2="14" y2="2.9" />
+        <line x1="10.7" y1="2.9" x2="11.5" y2="3.7" />
+        <line x1="17.3" y1="2.9" x2="16.5" y2="3.7" />
       </g>
-      {/* inbox tray catching it */}
+      {/* the "j" stem + hook */}
       <path
-        d="M4 13.5h4l1.4 2.1h5.2L16 13.5h4v4.2a1.3 1.3 0 0 1-1.3 1.3H5.3A1.3 1.3 0 0 1 4 17.7z"
+        d="M14 10 V16.8 A4.2 4.2 0 0 1 5.6 16.8"
         fill="none"
         stroke="var(--accent-500)"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
+        strokeWidth="2.1"
+        strokeLinecap="round"
       />
     </svg>
   );
