@@ -22,13 +22,13 @@ So the personal pipeline had to grow a front door, and that is this repository. 
 
 A visitor lands on the marketing page, sees the promise (same picks, in your inbox and on your dashboard), and requests access with their name and email. Because this is a closed beta, signup does not create an account directly: it files a request and emails me to approve or reject it. On approval the account is created and the person receives an email pointing them to a page where they set up their login with a one-time code. On rejection they get a polite decline.
 
-Once in, a new user is walked through onboarding: upload a CV (PDF or DOCX, parsed server-side to plaintext and saved against their profile, with a manual-paste fallback for scanned files), then configure preferences (notification email, delivery cadence, and at least one search query naming the board, location, role title, and remote eligibility). The moment all the pieces are in place, the onboarding strip collapses and the workspace unlocks.
+Once in, a new user is walked through onboarding: upload a CV (PDF or DOCX, parsed server-side to plaintext and saved against their profile, with a manual-paste fallback for scanned files), then configure preferences — notification email, delivery cadence, the career tracks they are targeting, their target seniority, and at least one search query. The moment all the pieces are in place, the onboarding strip collapses and the workspace unlocks.
 
-After that, the multi-user worker (the Python service in the engine repo) includes them in its hourly cron. For every active, approved user whose next run is due, the worker reads their CV and searches from the shared Supabase database, runs the pipeline against them, writes the run summary and the scored jobs back, and sends the morning email over Gmail SMTP. The user opens the dashboard and finds the same picks waiting in the Feedback tab, where they mark each job as Applied, Bookmark, Not for me, Block company, Wrong location, or Other. Bookmarks flow into the Tracker tab, a private application board with pipeline columns from Saved through Offer.
+After that, the multi-user worker (the Python service in the engine repo) includes them in its cron. For every active, approved user whose next run is due, the worker reads their CV, tracks, and searches from the shared Supabase database, runs the pipeline against them, writes the run summary and the scored jobs back, and sends the morning email over Gmail SMTP. The user opens the dashboard and finds the same picks waiting in the **Feedback** tab, where they mark each job as Applied, Bookmark, Not for me, Block company, Wrong location, or Other — and, per job, can ask an AI to gap-check or rebuild their CV for that specific role and download it as a PDF. Bookmarks flow into the **Tracker** tab, a private application board with pipeline columns from Saved through Offer, and an **Insights** tab charts their own match trends over time.
 
-Every reaction is one verdict per job, written to the shared database and embedded into a per-user RAG corpus. A periodic digest compresses each user's history into a short preference profile that the verdict LLM reads on the next run, so tomorrow's picks reflect what they actually applied to yesterday.
+Every reaction is one verdict per job, written to the shared database and embedded into a per-user RAG corpus. A periodic digest compresses each user's history into a structured preference profile that the verdict LLM reads on the next run, so tomorrow's picks reflect what they actually applied to yesterday.
 
-Inside this repo there are thirteen page routes and four API routes under `src/app/`, a small design-token UI kit, four feature-scoped server-action modules, sixteen idempotent SQL migrations, **174 tests across 23 files**, and a four-stage QA gate that runs on every push. The rest of this document is a tour of why each piece is shaped the way it is.
+Inside this repo there are fifteen page routes and three API routes under `src/app/`, a design-token UI kit with a light-default / dark theme, six feature-scoped server-action modules, twenty-eight idempotent SQL migrations, **296 tests across 34 files**, and a four-stage QA gate that runs on every push. The rest of this document is a tour of why each piece is shaped the way it is.
 
 ---
 
@@ -80,7 +80,7 @@ Each stage exists because the previous one could not be skipped. The access gate
 
 **Stage 2 — Account claim.** Instead of a single-use invite link (which corporate and university mail scanners pre-open, burning the token before the human clicks), approval sends the user to a token-less `/claim` page. There they request a one-time code, type it in, and set a password. A scanner cannot fill a form or type a code, so the flow is robust across every email provider. This was the hardest bug in the project, and the section below tells the whole story.
 
-**Stage 3 — Onboarding.** Two steps, gated by a `requireReady` check. The CV upload accepts PDF or DOCX (5 MB cap), parses text server-side via `pdf-parse` or `mammoth`, validates that at least a few hundred characters were extracted (scanned PDFs fail this and fall through to a manual paste textarea), and saves the file to a per-user folder in Supabase Storage. The preferences page is two sections: delivery (email, cadence, active toggle) and searches (cards with inline edit, each naming a board, location, sites, job type, remote eligibility, and recency window).
+**Stage 3 — Onboarding.** Two steps, gated by a `requireReady` check. The CV upload accepts PDF or DOCX (5 MB cap), parses text server-side via `unpdf` (a serverless-safe pdf.js build) or `mammoth`, validates that at least a few hundred characters were extracted (scanned PDFs fail this and fall through to a manual paste textarea), and saves the file to a per-user folder in Supabase Storage. The preferences page covers delivery (email, cadence, active toggle), the career tracks and target seniority that steer scoring, searches (cards with inline edit, each naming a board, location, sites, job type, remote eligibility, and recency window), and an optional GitHub connect.
 
 **Stage 4 — Dashboard unlock.** Once CV, preferences, and at least one active search are all present and the user has not paused the pipeline, the onboarding strip collapses and the page redirects into the workspace. Both tabs live under a Next.js route group that shares one layout: the workspace shell with tab navigation, a last-run stats strip, and a right rail with quick actions including a manual run-now button governed by a daily run budget.
 
@@ -132,14 +132,14 @@ Several flows route through `/auth/callback`: it handles both the OAuth code-exc
 
 CV upload is a single client form with two parallel actions. The drop zone takes a PDF or DOCX, submits it via an upload action, and on success populates the textarea with the parsed text. The textarea below it is a separate save action: paste plaintext directly, no file required. This split exists because scanned PDFs and image-only DOCXs extract to a few characters of garbage, which the upload action rejects with a message that points the user toward the textarea.
 
-The parser dispatches on mime type then extension, uses `pdf-parse` for PDFs and `mammoth` for DOCX, and normalizes the result (strips null bytes, unifies line endings, collapses blank runs, caps length). Storage uses a per-user folder pattern: every file lands at `cvs/{user_id}/cv.{ext}`, updates upsert to the same path, and switching formats deletes the previous file so orphans do not accumulate. The storage RLS policy ties each folder to its owner's user id.
+The parser dispatches on mime type then extension, uses `unpdf` for PDFs and `mammoth` for DOCX, and normalizes the result (strips null bytes, unifies line endings, collapses blank runs, caps length). PDF parsing originally used `pdf-parse`, which passed every local test but failed in the deployed Vercel function — it had to be externalized from the bundle and then was not reliably traced into it, so PDF uploads worked locally and broke in production. `unpdf` bundles cleanly as a self-contained serverless pdf.js build, and a QA test now parses a real PDF end-to-end so the failure cannot come back silently. Storage uses a per-user folder pattern: every file lands at `cvs/{user_id}/cv.{ext}`, updates upsert to the same path, and switching formats deletes the previous file so orphans do not accumulate. The storage RLS policy ties each folder to its owner's user id.
 
 </details>
 
 <details>
 <summary><strong>Preferences — delivery and searches in one page</strong></summary>
 
-Preferences loads both tables in parallel: the user's `preferences` row and all their `search_queries`. The delivery section is one form with a validated email, a cadence picker (the hourly option doubles as a debug speed), and an active switch with text that changes by state. The searches section is a list of cards, each with a view mode (search term, location, sites as chips, job type, remote flag, pause/edit/delete) and an edit mode that expands into a full form with site and job-type pickers and an Advanced panel for results-wanted, recency window, and country.
+Preferences loads both tables in parallel: the user's `preferences` row and all their `search_queries`. The delivery section is one form with a validated email, a cadence picker (the hourly option doubles as a debug speed), and an active switch with text that changes by state. A profile section lets the user pick their **career tracks** (a curated multi-select — Backend, AI/ML, Data Engineering, and so on) and their **target seniority** (entry / mid / senior); the tracks drive the worker's role weighting and can seed the search set, and the seniority steers how aggressively the pipeline filters senior roles. A "Regenerate from paths" button re-seeds the searches from the chosen tracks (round-robin, so every track is covered), keeping any the user edited by hand. The searches section is a list of cards, each with a view mode (search term, location, sites as chips, job type, remote flag, pause/edit/delete) and an edit mode that expands into a full form with site and job-type pickers and an Advanced panel for results-wanted, recency window, and country. An optional **GitHub connect** pulls a short digest of the user's public repositories that the worker appends to the CV text, so the scorer sees real project work the CV might not spell out.
 
 Every mutation validates at the action layer before touching the database: site names are sanitized against an allowlist, numeric fields are clamped to sane ranges, and every write scopes to the user id even though RLS would already enforce it. That is defense in depth; the application layer should never assume RLS is the only thing standing between a user and someone else's data.
 
@@ -163,7 +163,30 @@ Third, a hard onboarding gate. The workspace layout calls `requireReady()`, whic
 
 The Feedback tab renders the latest run's scored jobs as cards grouped by origin (local versus global), each with the AI verdict, match sub-scores, and the reaction buttons. Reactions are one verdict per job: tapping a different reaction replaces the previous one rather than stacking a contradictory second row, which keeps the training signal the worker reads clean and the displayed count honest. A keyboard flow (move, expand, mark applied, block) makes triage fast, and an optional note can ride along with any reaction to add a justification the digest will read.
 
-The Tracker tab is a private application board. Bookmarking a job from the Feedback tab lands it there, and an "add from results" picker scoped to the latest run lets a user track a job without searching through everything they have ever seen. The board carries a status history so the progression from Saved through Offer is preserved.
+The Tracker tab is a private application board. Bookmarking a job from the Feedback tab lands it there, and an "add from results" picker scoped to the latest run lets a user track a job without searching through everything they have ever seen. The board is a horizontally-scrolling kanban with fixed-width columns so cards stay readable, and it carries a status history so the progression from Saved through Offer is preserved.
+
+</details>
+
+<details>
+<summary><strong>Per-job CV tailoring — gap check and a downloadable draft</strong></summary>
+
+Inside any expanded job, two AI actions help the user aim their CV at that specific role, both grounded in a hard "never invent experience" rule — they only reorganize and surface what is already in the CV.
+
+The first, **Gap check**, returns a short plain-text list of what the posting wants that the CV does not show and how to fix it. The second, **Tailored draft**, does one generation that rebuilds the CV as *structured* data (name, contact, summary, skills, projects, education, certifications), calibrated to the job. The panel shows it as copyable text and also renders it into a **downloadable PDF** through a template the user picks (Classic, ATS-plain, or a modern serif). The templates are pure HTML/CSS renderers over the same data and ship with only placeholder content — the user's real data is injected at render time in their browser and printed via the browser's own "Save as PDF", so it costs nothing and never trips a pop-up blocker (an early version opened a new window and did). Both actions are cached by a hash of the CV so a repeat click is free until the CV changes, and the rebuild is capped to a few per day. The model is Groq's `gpt-oss-120b` on a dedicated key, called with `reasoning_format: "hidden"` and JSON mode so the structured output comes back clean and parseable.
+
+</details>
+
+<details>
+<summary><strong>Insights — the user's own analytics</strong></summary>
+
+The Insights tab turns a user's own run history into a small dashboard: how many jobs were scraped, evaluated, and approved over time, how their match scores trend, and where their picks are coming from. It reads only that user's rows (RLS-scoped like everything else) and is a read-only complement to the Feedback and Tracker tabs — the place to see whether the tuning is working, not to act on a single job.
+
+</details>
+
+<details>
+<summary><strong>Admin — access requests and system analytics</strong></summary>
+
+A single admin account (gated by an `ADMIN_USER_ID` env var, so the route and even the nav link never render for anyone else) gets a private `/admin` surface. It handles the access-request queue (approve / reject / resend a claim email) and an Analytics tab: system-wide user and run counts, health signals (stalled runs, email-send failures, zero-result runs, overdue schedules), feedback and engagement trends, per-user drill-down, and an LLM-usage panel that tracks requests, tokens, and peak RPM per provider against each free tier's caps. It is how a one-person beta stays observable without SSHing into anything.
 
 </details>
 
@@ -184,7 +207,7 @@ Every morning email links to a private, tokenized feedback page so a user can re
 <details>
 <summary><strong>Marketing — the dual-surface landing</strong></summary>
 
-The landing page is the only public route. Its central promise is structural: same picks, two surfaces. The hero sits small and centered, and below it two artifacts side by side: a high-fidelity email mock with the chrome a real email client uses, and a high-fidelity dashboard mock with browser chrome and the reaction chips. Both render the same sample jobs from one shared module, so the parallel is forced rather than declared. The palette is a neutral, utilitarian dark theme with a single accent, chosen deliberately after an earlier warmer design read as generic AI styling; all colors live as CSS variables mapped into Tailwind, so a theme change is a few lines in one file rather than a search-and-replace across components.
+The landing page is the only public route. Its central promise is structural: same picks, two surfaces. The hero sits above two artifacts side by side: a high-fidelity email mock with the chrome a real email client uses, and a high-fidelity dashboard mock with the reaction chips. Both render the same sample jobs from one shared module, so the parallel is forced rather than declared. The palette is the app's **"First Light"** identity — a calm pre-dawn navy grounds the interface and a single sunrise amber is rationed for the moments the product delivers (a strong match score, the top pick), reinforcing the "your matches, every morning" idea rather than decorating it. The brand mark is a lowercase "j" whose dot is a rising sun. All colors live as CSS variables mapped into Tailwind, so the whole look is defined in one file.
 
 </details>
 
@@ -228,9 +251,9 @@ A single page render touches a root layout, an intermediate layout, the page, an
 </details>
 
 <details>
-<summary><strong>Tokens-first design system</strong></summary>
+<summary><strong>Tokens-first design system, with a real light and dark theme</strong></summary>
 
-The accent, surfaces, borders, and text colors are all CSS variables mapped into Tailwind, so a component says `bg-[var(--accent-500)]`, not a hardcoded color. Re-theming the whole app, which happened once after the first palette read as generic, was a handful of lines in one file rather than a sweep across every component. Thin wrappers around HTML elements (button, input, switch, textarea) reach into the same vocabulary, giving consistency without a heavy component library.
+The accent, surfaces, borders, and text colors are all CSS variables mapped into Tailwind, so a component says `bg-[var(--accent-500)]`, not a hardcoded color. That token discipline is what made two full re-themes cheap: the app has been through a couple of palettes, and the current "First Light" identity ships **both a light and a dark theme** built from the same tokens. Light is the default for everyone on first visit (a deliberate choice — the app does not silently follow the OS setting); a toggle flips to a full night-sky dark variant, the choice persists, and a tiny pre-paint script applies it before first render so there is no flash of the wrong theme. Because every surface reads through the tokens, adding the second theme was a matter of defining a second set of values, not touching components; the few places that had hardcoded dark-only colors were the only real work. Thin wrappers around HTML elements (button, input, switch, textarea) reach into the same vocabulary, giving consistency without a heavy component library.
 
 </details>
 
@@ -238,7 +261,7 @@ The accent, surfaces, borders, and text colors are all CSS variables mapped into
 
 ## Engineering discipline
 
-**174 tests across 23 files.** The suite follows the same pyramid as the engine repo: unit tests for primitives and helpers, integration-flavored tests for server actions with the Supabase client mocked, and contract tests that pin the exact URL a user lands on after every auth code path. The suite runs in a few seconds via Vitest.
+**296 tests across 34 files.** The suite follows the same pyramid as the engine repo: unit tests for primitives and helpers, integration-flavored tests for server actions with the Supabase client mocked, and contract tests that pin the exact URL a user lands on after every auth code path. The suite runs in a few seconds via Vitest.
 
 **Four-stage QA gate.** `npm run qa` runs four checks fail-fast: a type check (`tsc --noEmit`), lint, the Vitest suite, and a real production `next build` that catches server-component misconfigurations and bundling issues a unit test never would. The same script runs in CI on every push and pull request. One hard-won habit lives here: clear the incremental TypeScript build cache before trusting a green local run, because a stale cache can pass locally while a clean CI checkout fails on the same code.
 
@@ -262,36 +285,41 @@ The accent, surfaces, borders, and text colors are all CSS variables mapped into
 |   |   |-- actions/                  server actions grouped by feature
 |   |   |   |-- auth.ts               request-first signup, login, password reset, signout
 |   |   |   |-- cv.ts                 upload + parse + save CV text
-|   |   |   |-- preferences.ts        delivery prefs + search-query CRUD
-|   |   |   `-- run.ts                manual run-now dispatch + reschedule (daily budget)
+|   |   |   |-- preferences.ts        delivery prefs + paths + seniority + search CRUD
+|   |   |   |-- run.ts                manual run-now dispatch + reschedule (daily budget)
+|   |   |   |-- github.ts             optional public-GitHub connect + repo digest
+|   |   |   `-- tailor.ts             per-job CV gap-check + structured tailored draft
 |   |   |
-|   |   |-- admin/                    approve/reject access requests (admin-only)
+|   |   |-- admin/                    access-request queue + analytics (admin-only)
 |   |   |-- claim/                    token-less account setup via one-time code
 |   |   |-- auth/                     callback (code + OTP flows) + reset-password
 |   |   |-- api/                      feedback, email-feedback, access-decision
-|   |   |-- dashboard/                workspace shell + Feedback/Tracker tabs (route group)
+|   |   |-- dashboard/                workspace shell + Feedback/Tracker/Insights (route group)
 |   |   |-- onboarding/cv/            upload + parse CV
-|   |   |-- preferences/              delivery + searches editor
+|   |   |-- preferences/              delivery + paths + searches + GitHub editor
 |   |   |-- f/[token]/                tokenized email feedback page (no login)
 |   |   |-- forgot-password/ login/ signup/
-|   |   |-- globals.css               design tokens + Tailwind theme bridge
-|   |   |-- layout.tsx                root layout
+|   |   |-- globals.css               design tokens (light + dark) + Tailwind theme bridge
+|   |   |-- icon.svg                  theme-aware favicon (the j-monogram mark)
+|   |   |-- layout.tsx                root layout + pre-paint theme script
 |   |   `-- page.tsx                  marketing landing
 |   |
-|   |-- components/                   brand, layout shells, marketing artifacts, UI kit
+|   |-- components/                   brand (logo + theme toggle), shells, marketing, UI kit
 |   |-- lib/
 |   |   |-- supabase/                 SSR client + browser client + admin client + middleware
 |   |   |-- email-smtp.ts             Gmail SMTP sender (mirrors the worker's transport)
 |   |   |-- access-requests.ts        approve/reject + claim email bodies + token hashing
-|   |   |-- cv-parser.ts              PDF/DOCX -> normalized text
+|   |   |-- cv-parser.ts              PDF (unpdf) / DOCX (mammoth) -> normalized text
+|   |   |-- cv-tailor.ts              tailor prompts, caps, Groq call (reasoning hidden)
+|   |   |-- cv-templates.ts           structured-CV schema + parser + 3 print templates
 |   |   `-- utils.ts                  cn() class-merge helper
 |   |
 |   `-- proxy.ts                      Next 16 middleware (refreshes the session)
 |
-|-- migrations/                       Supabase SQL, applied in numeric order (16 files)
+|-- migrations/                       Supabase SQL, applied in numeric order (28 files)
 |-- QA/
 |   |-- run_all.mjs                   four-stage gate: types -> lint -> vitest -> build
-|   |-- unit/                         174 tests across the suite
+|   |-- unit/                         296 tests across the suite
 |   `-- stubs/                        test stubs (e.g. server-only)
 |
 |-- .github/workflows/qa.yml          CI: runs the QA gate on every push/PR
@@ -318,9 +346,10 @@ npm install
 #   ADMIN_USER_ID                     (locks /admin to you)
 #   NEXT_PUBLIC_SITE_URL              (canonical app URL, powers email links)
 #   GH_DISPATCH_TOKEN                 (lets run-now trigger the worker)
+#   GROQ_TAILOR_API_KEY               (dedicated Groq key for the per-job CV tailor)
 
 # Apply the migrations in your Supabase project's SQL Editor, in numeric order
-#   migrations/0001_*.sql ... 0016_*.sql
+#   migrations/0001_*.sql ... 0028_*.sql
 
 # Run the QA gate (must pass before pushing)
 npm run qa
@@ -346,13 +375,16 @@ A snapshot of the current state:
 | Account setup                         | request -> approve -> one-time-code claim              |
 | File storage                          | Supabase Storage (per-user folder RLS)                 |
 | Email transport                       | Gmail SMTP (any recipient, no domain)                  |
-| Page routes / API routes              | 13 / 4                                                 |
-| Server-action modules                 | 4 (auth, cv, preferences, run)                         |
-| Migrations                            | 16 SQL files, all idempotent                           |
-| Tests                                 | 174 across 23 files                                    |
+| Theme                                 | First Light — light default + full dark, one toggle    |
+| Dashboard tabs                        | Feedback, Tracker, Insights                            |
+| Page routes / API routes              | 15 / 3                                                 |
+| Server-action modules                 | 6 (auth, cv, preferences, run, github, tailor)         |
+| Migrations                            | 28 SQL files, all idempotent                           |
+| Tests                                 | 296 across 34 files                                    |
 | QA gate stages                        | 4 (types, lint, vitest, build)                         |
 | Feedback model                        | one verdict per (user, job), latest reaction wins      |
-| CV upload size cap                    | 5 MB                                                   |
+| CV upload size cap                    | 5 MB (PDF via unpdf, DOCX via mammoth)                 |
+| Per-job CV tailor                     | gap check + structured draft -> downloadable PDF       |
 | Frequency options                     | hourly (debug), daily, every 2 days, weekly            |
 | Manual runs                           | budgeted per day (Jerusalem midnight)                  |
 | Monthly cost (Supabase + Vercel free) | $0                                                     |
