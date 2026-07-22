@@ -1,33 +1,38 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ */
-/*  Design tokens — Job Alerts · "First Light".                       */
+/*  Design tokens — Job Alerts · "Daybreak".                          */
 /*                                                                    */
 /*  The product works while you sleep and delivers at sunrise. So:    */
 /*  a calm, pre-dawn NAVY grounds the interface, and a single warm    */
 /*  SUNRISE AMBER is rationed for the moments the product delivers —  */
 /*  a match score, a pick, a highlight. Light is the default; a full  */
-/*  night-sky dark variant is built from the same tokens.             */
+/*  night-sky dark variant is built from the same tokens. A dark      */
+/*  navy masthead (--mast) persists across every route as the brand's */
+/*  fixed anchor.                                                     */
 /*                                                                    */
 /*  Palette values live ONCE in the --lt-* (light) and --dk-* (dark)  */
-/*  banks below; the active --token is mapped from one bank in four   */
-/*  small blocks (default light, system-dark media, and the two       */
-/*  explicit data-theme overrides) so a theme can never drift.        */
+/*  banks below; the active --token is mapped from one bank in three  */
+/*  small blocks (default light + the two explicit data-theme         */
+/*  overrides) so a theme can never drift.                            */
 /* ------------------------------------------------------------------ */
 
 :root {
   /* ===== LIGHT value bank ========================================= */
-  --lt-bg-base:       #f4f6fa;   /* cool morning mist                 */
+  --lt-mast:        #12233a;   /* masthead / primary dark surface & primary button */
+  --lt-mast-fg:     #f4f8fd;   /* light text on the navy masthead   */
+  --lt-mast-fg-dim: rgba(244, 248, 253, 0.62);
+  --lt-bg-base:       #f6f7f9;   /* cool paper                       */
   --lt-bg-elevated:   #ffffff;   /* cards / raised surfaces           */
-  --lt-bg-overlay:    #eaeef4;   /* subtle fills, hover on light      */
-  --lt-bg-hover:      #e0e6ee;
-  --lt-border-subtle: rgba(31, 58, 95, 0.09);
-  --lt-border-muted:  rgba(31, 58, 95, 0.15);
-  --lt-border-strong: rgba(31, 58, 95, 0.26);
-  --lt-text-primary:   #1b2532;  /* deep navy-ink                     */
-  --lt-text-secondary-v: #566173;
-  --lt-text-tertiary:  #86909f;
-  --lt-text-disabled:  #b4bcc9;
+  --lt-bg-overlay:    #eef1f5;   /* subtle fills, hover on light      */
+  --lt-bg-hover:      #f6f8fb;   /* row / control hover               */
+  --lt-border-subtle: rgba(19, 28, 42, 0.10);
+  --lt-border-muted:  rgba(19, 28, 42, 0.15);
+  --lt-border-strong: rgba(19, 28, 42, 0.26);
+  --lt-text-primary:   #131c2a;  /* headings, primary text            */
+  --lt-text-secondary-v: #4c5a70;
+  --lt-text-tertiary:  #8b95a5;
+  --lt-text-disabled:  #b6bfcb;
   /* Accent = NAVY (primary interactive: buttons, links, focus)       */
   --lt-accent-50:  #eef2f8;
   --lt-accent-200: #adbfd6;
@@ -39,34 +44,37 @@
   /* Highlight = SUNRISE AMBER (rationed: scores, picks, matches)     */
   --lt-highlight-200: #f7cd9f;
   --lt-highlight-300: #f0a862;
-  --lt-highlight-400: #e0801f;
+  --lt-highlight-400: #e0801f;   /* sunrise amber — the delivery signal */
   --lt-highlight-500: #c76d16;
-  --lt-highlight-600: #a2570f;
+  --lt-highlight-600: #a5590e;   /* amber ink — amber text on light (AA on paper) */
   --lt-success-400: #2e7d51;
   --lt-success-500: #256843;
   --lt-warning-400: #b5850f;
   --lt-danger-400:  #cc4033;
   --lt-danger-500:  #b3372b;
-  --lt-surface-recessed: #e7ecf3;
+  --lt-surface-recessed: #eef1f5;
   --lt-shadow-raised:
-    0 1px 2px rgba(31, 58, 95, 0.07),
-    0 1px 3px rgba(31, 58, 95, 0.05);
+    0 1px 2px rgba(19, 28, 42, 0.07),
+    0 1px 3px rgba(19, 28, 42, 0.05);
   --lt-shadow-recessed:
-    inset 0 1px 2px rgba(31, 58, 95, 0.07);
+    inset 0 1px 2px rgba(19, 28, 42, 0.07);
   --lt-shadow-overlay:
-    0 0 0 1px rgba(31, 58, 95, 0.07),
-    0 12px 28px -10px rgba(31, 58, 95, 0.20),
-    0 24px 52px -18px rgba(31, 58, 95, 0.18);
+    0 0 0 1px rgba(19, 28, 42, 0.07),
+    0 12px 28px -10px rgba(19, 28, 42, 0.20),
+    0 24px 52px -18px rgba(19, 28, 42, 0.18);
   --lt-ring: rgba(31, 58, 95, 0.45);
   --lt-selection-bg: #1f3a5f;
   --lt-selection-fg: #f2f6fc;
   --lt-color-scheme: light;
 
   /* ===== DARK value bank (night sky) ============================== */
+  --dk-mast:        #0b1220;   /* near-black navy masthead           */
+  --dk-mast-fg:     #eaf0f8;
+  --dk-mast-fg-dim: rgba(234, 240, 248, 0.60);
   --dk-bg-base:       #0f1626;   /* pre-dawn navy-black               */
   --dk-bg-elevated:   #151f33;
   --dk-bg-overlay:    #1c2942;
-  --dk-bg-hover:      #243350;
+  --dk-bg-hover:      #24344f;
   --dk-border-subtle: rgba(180, 200, 230, 0.08);
   --dk-border-muted:  rgba(180, 200, 230, 0.14);
   --dk-border-strong: rgba(180, 200, 230, 0.24);
@@ -82,18 +90,18 @@
   --dk-accent-500: #4f76ad;
   --dk-accent-600: #3d5d8c;
   --dk-accent-700: #2e496f;
-  /* Highlight = amber stays the single warm light                    */
+  /* Highlight = amber, brightened for the dark ground                */
   --dk-highlight-200: #f7cd9f;
   --dk-highlight-300: #f2a65a;
-  --dk-highlight-400: #e8842c;
-  --dk-highlight-500: #f09a45;
+  --dk-highlight-400: #f0a45a;
+  --dk-highlight-500: #e0913f;
   --dk-highlight-600: #cf7620;
   --dk-success-400: #4caf7d;
   --dk-success-500: #3f9a6c;
   --dk-warning-400: #d8a13e;
   --dk-danger-400:  #e5695d;
   --dk-danger-500:  #cf5a4f;
-  --dk-surface-recessed: #0a0f1c;
+  --dk-surface-recessed: #0b1526;
   --dk-shadow-raised:
     0 1px 2px rgba(0, 0, 0, 0.4);
   --dk-shadow-recessed:
@@ -108,12 +116,14 @@
   --dk-color-scheme: dark;
 
   /* ===== Non-color tokens (theme-independent) ===================== */
-  --motion-fast: 150ms;
-  --motion-base: 200ms;
-  --motion-slow: 250ms;
-  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  /* motion — three intents, one house curve                          */
+  --motion-fast: 150ms;   /* state feedback: hover, press, toggle     */
+  --motion-base: 220ms;   /* local layout: expand, tab, card morph    */
+  --motion-slow: 320ms;   /* route-level: screen change, theme wipe   */
+  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);   /* decelerate — house curve */
+  --ease-spring: cubic-bezier(0.3, 1.4, 0.4, 1); /* overshoot — pops, thumb slide */
   --radius-sm: 6px;
-  --radius-md: 8px;
+  --radius-md: 9px;
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-full: 9999px;
@@ -121,6 +131,9 @@
 
 /* ---- Active-token mapping. Light is the default. ----------------- */
 :root {
+  --mast:        var(--lt-mast);
+  --mast-fg:     var(--lt-mast-fg);
+  --mast-fg-dim: var(--lt-mast-fg-dim);
   --bg-base:       var(--lt-bg-base);
   --bg-elevated:   var(--lt-bg-elevated);
   --bg-overlay:    var(--lt-bg-overlay);
@@ -166,6 +179,9 @@
  * light. Dark is opt-in via the toggle (persisted in localStorage and applied
  * pre-paint as data-theme="dark"). The two explicit overrides below carry it. */
 :root[data-theme="light"] {
+  --mast:        var(--lt-mast);
+  --mast-fg:     var(--lt-mast-fg);
+  --mast-fg-dim: var(--lt-mast-fg-dim);
   --bg-base:       var(--lt-bg-base);
   --bg-elevated:   var(--lt-bg-elevated);
   --bg-overlay:    var(--lt-bg-overlay);
@@ -207,6 +223,9 @@
 }
 
 :root[data-theme="dark"] {
+  --mast:        var(--dk-mast);
+  --mast-fg:     var(--dk-mast-fg);
+  --mast-fg-dim: var(--dk-mast-fg-dim);
   --bg-base:       var(--dk-bg-base);
   --bg-elevated:   var(--dk-bg-elevated);
   --bg-overlay:    var(--dk-bg-overlay);
