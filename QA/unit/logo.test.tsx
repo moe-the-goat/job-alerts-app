@@ -21,8 +21,7 @@ describe("<Logo />", () => {
 
   it("renders the wordmark", () => {
     render(<Logo />);
-    // The wordmark splits "job" / "alerts" around a dot character.
-    expect(screen.getByText(/job/)).toBeInTheDocument();
-    expect(screen.getByText(/alerts/)).toBeInTheDocument();
+    // Daybreak wordmark is the title-case "Job Alerts".
+    expect(screen.getByText("Job Alerts")).toBeInTheDocument();
   });
 });
