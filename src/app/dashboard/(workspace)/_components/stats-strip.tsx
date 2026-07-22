@@ -94,7 +94,7 @@ export function StatsStrip({ lastRun, nextRunAt, pendingDispatchAt }: StatsStrip
         </div>
 
         {status === "success" && (
-          <dl className="grid grid-cols-2 gap-x-5 gap-y-1 text-[11px] sm:grid-cols-5">
+          <dl className="flex flex-wrap items-stretch overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/60 text-[11px]">
             <Metric label="Scraped" value={lastRun.scraped} />
             <Metric label="Filtered" value={lastRun.filtered} />
             <Metric label="Evaluated" value={lastRun.ai_evaluated} />
@@ -104,7 +104,7 @@ export function StatsStrip({ lastRun, nextRunAt, pendingDispatchAt }: StatsStrip
         )}
 
         {status === "failed" && lastRun.scraped > 0 && (
-          <dl className="grid grid-cols-2 gap-x-5 gap-y-1 text-[11px]">
+          <dl className="flex items-stretch overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/60 text-[11px]">
             <Metric label="Scraped before failure" value={lastRun.scraped} />
           </dl>
         )}
@@ -123,15 +123,22 @@ function Metric({
   accent?: boolean;
 }) {
   return (
-    <div>
-      <dt className="text-[var(--text-tertiary)] uppercase tracking-wider">
+    <div
+      className={[
+        "min-w-[92px] flex-1 border-l border-[var(--border-subtle)] px-3.5 py-2 first:border-l-0",
+        // The picks the run delivered get a faint amber wash — the same
+        // "product delivered" note used on the scores and the landing.
+        accent
+          ? "bg-[color-mix(in_srgb,var(--highlight-400)_6%,transparent)]"
+          : "",
+      ].join(" ")}
+    >
+      <dt className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">
         {label}
       </dt>
       <dd
         className={[
-          "mt-0.5 font-mono text-[14px] font-medium",
-          // The picks the run delivered glow in the sunrise amber — the same
-          // "product delivered" note used on the scores and the landing.
+          "mt-0.5 font-mono text-[14px] font-medium tabular-nums",
           accent ? "text-[var(--highlight-500)]" : "text-[var(--text-primary)]",
         ].join(" ")}
       >
