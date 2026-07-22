@@ -24,7 +24,13 @@ function subscribe(onChange: () => void): () => void {
   return () => window.removeEventListener("themechange", onChange);
 }
 
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle({
+  className,
+  tone = "default",
+}: {
+  className?: string;
+  tone?: "default" | "onMast";
+}) {
   const theme = React.useSyncExternalStore(
     subscribe,
     getSnapshot,
@@ -43,6 +49,11 @@ export function ThemeToggle({ className }: { className?: string }) {
     window.dispatchEvent(new Event("themechange"));
   }
 
+  const toneClasses =
+    tone === "onMast"
+      ? "text-[var(--mast-fg-dim)] hover:bg-white/10 hover:text-[var(--mast-fg)] focus-visible:ring-white/40"
+      : "text-[var(--text-secondary)] hover:bg-[var(--bg-overlay)] hover:text-[var(--text-primary)] focus-visible:ring-[var(--ring)]";
+
   return (
     <button
       type="button"
@@ -50,9 +61,9 @@ export function ThemeToggle({ className }: { className?: string }) {
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       title={isDark ? "Light theme" : "Dark theme"}
       className={[
-        "inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)]",
-        "transition-colors hover:bg-[var(--bg-overlay)] hover:text-[var(--text-primary)]",
-        "outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+        "inline-flex h-9 w-9 items-center justify-center rounded-md",
+        "transition-colors outline-none focus-visible:ring-2",
+        toneClasses,
         className ?? "",
       ].join(" ")}
     >
