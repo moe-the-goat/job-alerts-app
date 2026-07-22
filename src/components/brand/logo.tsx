@@ -5,9 +5,20 @@ interface LogoProps {
   size?: "sm" | "md" | "lg";
   href?: string;
   className?: string;
+  /**
+   * "default" renders the wordmark in the primary text color (for light
+   * surfaces); "onMast" renders it in the masthead foreground so it reads on
+   * the navy masthead. The mark itself is fixed brand color in both tones.
+   */
+  tone?: "default" | "onMast";
 }
 
-export function Logo({ size = "md", href = "/", className }: LogoProps) {
+export function Logo({
+  size = "md",
+  href = "/",
+  className,
+  tone = "default",
+}: LogoProps) {
   const sizes = {
     sm: { mark: "h-5 w-5", text: "text-sm" },
     md: { mark: "h-6 w-6", text: "text-[15px]" },
@@ -18,15 +29,16 @@ export function Logo({ size = "md", href = "/", className }: LogoProps) {
   const inner = (
     <span
       className={cn(
-        "inline-flex items-center gap-2 font-semibold tracking-tight text-[var(--text-primary)]",
+        "inline-flex items-center gap-2 font-semibold tracking-tight",
+        tone === "onMast"
+          ? "text-[var(--mast-fg)]"
+          : "text-[var(--text-primary)]",
         s.text,
         className,
       )}
     >
       <LogoMark className={s.mark} />
-      <span>
-        job<span className="text-[var(--highlight-400)]">·</span>alerts
-      </span>
+      <span>Job Alerts</span>
     </span>
   );
 
@@ -42,9 +54,12 @@ export function Logo({ size = "md", href = "/", className }: LogoProps) {
 }
 
 /**
- * The mark: a lowercase "j" whose dot is a rising sun — a monogram for
- * job·alerts that reads as a letter and a sunrise at once, echoing the amber
- * "·" in the wordmark. Navy stem, one warm amber sun. Scales to a favicon.
+ * The mark: the "horizon tile" — a sun half-risen over a navy horizon inside a
+ * rounded app tile. It literalizes the product story (results delivered at
+ * sunrise) and reads at every size, from favicon to email avatar. Its brand
+ * colors are fixed literals in both themes — a logo is constant — so the navy
+ * tile and amber sun do NOT read from tokens. The horizon band is drawn as a
+ * path with rounded bottom corners so it never pokes past the tile's radius.
  */
 export function LogoMark({ className }: { className?: string }) {
   return (
@@ -54,20 +69,14 @@ export function LogoMark({ className }: { className?: string }) {
       className={cn("shrink-0", className)}
       fill="none"
     >
-      {/* the rising-sun dot */}
-      <circle cx="14" cy="6" r="2.35" fill="var(--highlight-400)" />
-      <g stroke="var(--highlight-400)" strokeWidth="1.3" strokeLinecap="round">
-        <line x1="14" y1="1.9" x2="14" y2="2.9" />
-        <line x1="10.7" y1="2.9" x2="11.5" y2="3.7" />
-        <line x1="17.3" y1="2.9" x2="16.5" y2="3.7" />
-      </g>
-      {/* the "j" stem + hook */}
+      {/* sky tile */}
+      <rect x="2" y="2" width="20" height="20" rx="5.5" fill="#1f3a5f" />
+      {/* the rising sun — its lower half is hidden by the horizon band below */}
+      <circle cx="12" cy="13.5" r="4.2" fill="#e0801f" />
+      {/* horizon band: square top, bottom corners rounded to the tile radius */}
       <path
-        d="M14 10 V16.8 A4.2 4.2 0 0 1 5.6 16.8"
-        fill="none"
-        stroke="var(--accent-500)"
-        strokeWidth="2.1"
-        strokeLinecap="round"
+        d="M2 13.5 L22 13.5 L22 16.5 A5.5 5.5 0 0 1 16.5 22 L7.5 22 A5.5 5.5 0 0 1 2 16.5 Z"
+        fill="#0d1b30"
       />
     </svg>
   );

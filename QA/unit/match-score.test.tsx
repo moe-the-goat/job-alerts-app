@@ -8,17 +8,17 @@ describe("<MatchScore />", () => {
     expect(screen.getByLabelText("Not scored")).toHaveTextContent("—");
   });
 
-  it("renders a 0 score with no filled segments", () => {
+  it("renders a 0 score chip", () => {
     render(<MatchScore score={0} />);
-    const gauge = screen.getByRole("img", { name: "Match 0%" });
-    expect(gauge).toBeInTheDocument();
-    expect(gauge.querySelectorAll('[data-filled="true"]')).toHaveLength(0);
+    const chip = screen.getByRole("img", { name: "Match 0%" });
+    expect(chip).toBeInTheDocument();
+    expect(chip).toHaveTextContent("0");
   });
 
-  it("renders a 100 score with every segment filled", () => {
+  it("renders a 100 score chip", () => {
     render(<MatchScore score={100} />);
-    const gauge = screen.getByRole("img", { name: "Match 100%" });
-    expect(gauge.querySelectorAll('[data-filled="true"]')).toHaveLength(5);
+    const chip = screen.getByRole("img", { name: "Match 100%" });
+    expect(chip).toHaveTextContent("100");
   });
 
   it("clamps out-of-range scores into 0–100", () => {

@@ -1,3 +1,4 @@
+import { CountUp } from "@/components/ui/count-up";
 import type { InsightsData } from "../_lib/insights-data";
 
 /**
@@ -117,13 +118,13 @@ function Stat({
   return (
     <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/40 px-4 py-3">
       <div
-        className={`text-[22px] font-semibold tabular-nums ${
-          tone === "accent" ? "text-[var(--accent-300)]" : "text-[var(--text-primary)]"
+        className={`font-mono text-[22px] font-semibold tabular-nums ${
+          tone === "accent" ? "text-[var(--highlight-500)]" : "text-[var(--text-primary)]"
         }`}
       >
-        {value}
+        {typeof value === "number" ? <CountUp value={value} /> : value}
       </div>
-      <div className="mt-0.5 text-[11px] uppercase tracking-wider text-[var(--text-tertiary)]">
+      <div className="mt-0.5 font-mono text-[11px] uppercase tracking-wider text-[var(--text-tertiary)]">
         {label}
       </div>
     </div>
@@ -133,7 +134,7 @@ function Stat({
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/40 p-4">
-      <h3 className="mb-3 text-[12px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
+      <h3 className="mb-3 font-mono text-[12px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
         {title}
       </h3>
       {children}

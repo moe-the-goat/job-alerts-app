@@ -28,10 +28,10 @@ export function Board({ bookmarks }: { bookmarks: Bookmark[] }) {
         return (
           <div
             key={status}
-            className="flex w-60 shrink-0 flex-col gap-2 self-start rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/30 p-2.5 sm:w-64"
+            className="flex w-60 shrink-0 flex-col gap-2 self-start rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-2.5 shadow-[var(--shadow-raised)] sm:w-64"
           >
             <div className="flex items-center justify-between px-0.5">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
+              <span className="font-mono text-[11px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
                 {STATUS_LABELS[status]}
               </span>
               <span className="text-[10.5px] text-[var(--text-disabled)]">

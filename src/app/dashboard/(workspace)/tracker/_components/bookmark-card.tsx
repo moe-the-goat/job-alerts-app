@@ -52,7 +52,7 @@ export function BookmarkCard({ bookmark }: { bookmark: Bookmark }) {
   }
 
   return (
-    <article className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)]/60 p-3 transition-colors hover:border-[var(--border-muted)]">
+    <article className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] p-3 transition-all duration-150 hover:border-[var(--border-muted)] motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-[var(--shadow-raised)]">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h4 className="truncate text-[13px] font-medium text-[var(--text-primary)]">

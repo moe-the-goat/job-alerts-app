@@ -14,13 +14,11 @@ export interface MatchScoreProps {
   className?: string;
 }
 
-const SEGMENTS = 5;
-
 /**
- * First Light score language: a strong match glows in the sunrise amber (the
- * product delivered a real pick), a decent one reads in the calm navy accent,
- * and a weak one in danger red. Amber-for-strong is the brand's positive
- * signal — distinct from the semantic "warning" amber used for cautions.
+ * Daybreak score language: a strong match (>=80) is the app's one recurring
+ * "strong match" signal — a solid amber chip (amber-tint fill, amber ink, amber
+ * edge). Everything else is a calm neutral chip. Amber-for-strong is the brand's
+ * positive signal — distinct from the semantic "warning" amber used for cautions.
  */
 function scoreColor(score: number): string {
   if (score >= 80) return "var(--highlight-500)";
@@ -28,10 +26,19 @@ function scoreColor(score: number): string {
   return "var(--danger-400)";
 }
 
+/** Chip skin by score band — amber for strong, neutral otherwise. */
+function chipClasses(score: number): string {
+  if (score >= 80)
+    return "bg-[color-mix(in_srgb,var(--highlight-400)_12%,transparent)] text-[var(--highlight-600)] border-[color-mix(in_srgb,var(--highlight-400)_42%,transparent)]";
+  if (score >= 60)
+    return "bg-[var(--surface-recessed)] text-[var(--text-secondary)] border-[var(--border-subtle)]";
+  return "bg-[var(--surface-recessed)] text-[var(--text-tertiary)] border-[var(--border-subtle)]";
+}
+
 /**
- * match_percentage as a glanceable visual instead of a raw integer:
- * a mono numeral plus a 5-segment gauge tinted by heat. Hover/focus
- * reveals the tech / experience / logistics breakdown.
+ * match_percentage as a glanceable chip instead of a raw integer: a mono numeral
+ * in a rounded chip, amber when strong. Hover/focus reveals the tech /
+ * experience / logistics breakdown.
  */
 export function MatchScore({
   score,
@@ -55,8 +62,6 @@ export function MatchScore({
   }
 
   const clamped = Math.max(0, Math.min(100, score));
-  const filled = Math.round((clamped / 100) * SEGMENTS);
-  const color = scoreColor(clamped);
 
   const breakdown = [
     { label: "Tech", value: tech },
@@ -64,39 +69,24 @@ export function MatchScore({
     { label: "Logistics", value: logistics },
   ].filter((row): row is { label: string; value: number } => row.value != null);
 
-  const gauge = (
+  const chip = (
     <span
       tabIndex={0}
       role="img"
       aria-label={`Match ${clamped}%`}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md outline-none",
-        "focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+        "inline-flex min-w-[2.25rem] items-center justify-center rounded-md border px-2 py-[3px]",
+        "font-mono text-[12px] font-medium tabular-nums outline-none",
+        "transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+        chipClasses(clamped),
         className,
       )}
     >
-      <span
-        className="w-7 text-right font-mono text-[12px] tabular-nums"
-        style={{ color }}
-      >
-        {clamped}
-      </span>
-      <span className="inline-flex items-center gap-[2px]" aria-hidden>
-        {Array.from({ length: SEGMENTS }, (_, i) => (
-          <span
-            key={i}
-            data-filled={i < filled}
-            className="h-[10px] w-[3px] rounded-full transition-colors duration-150"
-            style={{
-              background: i < filled ? color : "var(--border-strong)",
-            }}
-          />
-        ))}
-      </span>
+      {clamped}
     </span>
   );
 
-  if (breakdown.length === 0) return gauge;
+  if (breakdown.length === 0) return chip;
 
   return (
     <Tooltip
@@ -127,7 +117,7 @@ export function MatchScore({
         </span>
       }
     >
-      {gauge}
+      {chip}
     </Tooltip>
   );
 }

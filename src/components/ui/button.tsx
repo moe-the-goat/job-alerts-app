@@ -15,13 +15,18 @@ export const buttonStyles = cva(
     variants: {
       variant: {
         primary:
-          "bg-[var(--accent-500)] text-white " +
-          "hover:bg-[var(--accent-400)] " +
-          "active:bg-[var(--accent-600)]",
+          "bg-[var(--mast)] text-white " +
+          "hover:bg-[var(--accent-600)] motion-safe:hover:-translate-y-px " +
+          "active:translate-y-0 active:bg-[var(--accent-700)]",
         secondary:
           "bg-[var(--surface-raised)] text-[var(--text-primary)] border border-[var(--border-muted)] shadow-[var(--shadow-raised)] " +
           "hover:bg-[var(--bg-overlay)] hover:border-[var(--border-strong)] " +
           "active:shadow-[var(--shadow-recessed)]",
+        // Sunrise-amber CTA — the delivery signal, reserved for marketing.
+        highlight:
+          "bg-[var(--highlight-400)] text-[#231303] " +
+          "hover:brightness-[1.05] motion-safe:hover:-translate-y-px " +
+          "active:translate-y-0 active:brightness-95",
         ghost:
           "bg-transparent text-[var(--text-secondary)] " +
           "hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]",
@@ -30,10 +35,10 @@ export const buttonStyles = cva(
           "hover:underline px-0",
       },
       size: {
-        sm: "h-8 px-3 text-sm rounded-md",
-        md: "h-10 px-4 text-sm rounded-md",
-        lg: "h-11 px-5 text-[15px] rounded-lg",
-        xl: "h-12 px-6 text-base rounded-lg",
+        sm: "h-8 px-3 text-sm rounded-[9px]",
+        md: "h-10 px-4 text-sm rounded-[10px]",
+        lg: "h-11 px-5 text-[15px] rounded-[11px]",
+        xl: "h-12 px-6 text-base rounded-[11px]",
       },
       width: {
         auto: "",

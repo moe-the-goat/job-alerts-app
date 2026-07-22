@@ -12,21 +12,39 @@ const TABS = [
 
 export function WorkspaceTabs() {
   const pathname = usePathname();
+  const activeIndex = Math.max(
+    0,
+    TABS.findIndex(
+      ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
+    ),
+  );
+
   return (
     <nav
       aria-label="Workspace tabs"
-      className="flex items-center gap-1 border-b border-[var(--border-subtle)]"
+      className="relative inline-grid grid-cols-3 items-center rounded-[10px] bg-[var(--surface-recessed)] p-1"
     >
-      {TABS.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || pathname.startsWith(`${href}/`);
+      {/* The sliding thumb — a white pill that glides under the active tab. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-1 left-1 rounded-[7px] bg-[var(--bg-elevated)] shadow-[var(--shadow-raised)]"
+        style={{
+          width: "calc((100% - 0.5rem) / 3)",
+          transform: `translateX(calc(${activeIndex} * 100%))`,
+          transition:
+            "transform var(--motion-base) var(--ease-spring)",
+        }}
+      />
+      {TABS.map(({ href, label, icon: Icon }, i) => {
+        const active = i === activeIndex;
         return (
           <Link
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
             className={[
-              "relative inline-flex items-center gap-2 px-4 py-3 text-sm transition-colors outline-none",
-              "focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-base)] rounded-t-md",
+              "relative z-10 inline-flex items-center justify-center gap-2 rounded-[7px] px-4 py-2 text-sm transition-colors outline-none",
+              "focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-base)]",
               active
                 ? "text-[var(--text-primary)]"
                 : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
@@ -34,12 +52,6 @@ export function WorkspaceTabs() {
           >
             <Icon className="h-3.5 w-3.5" />
             {label}
-            {active && (
-              <span
-                aria-hidden
-                className="absolute inset-x-3 -bottom-px h-px bg-[var(--accent-500)]"
-              />
-            )}
           </Link>
         );
       })}

@@ -281,14 +281,14 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
 
       {sections.map((section) => (
         <section key={section.label} className="mb-6 last:mb-0">
-          <header className="flex items-baseline gap-2 border-b border-[var(--border-muted)] pb-1.5">
+          <header className="mb-2 flex items-center gap-2">
             {section.icon === "globe" && (
-              <Globe2 className="h-3.5 w-3.5 self-center text-[var(--text-tertiary)]" />
+              <Globe2 className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
             )}
             {section.icon === "pin" && (
-              <MapPin className="h-3.5 w-3.5 self-center text-[var(--text-tertiary)]" />
+              <MapPin className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
             )}
-            <h3 className="text-[13px] font-medium text-[var(--text-primary)]">
+            <h3 className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
               {section.label}
             </h3>
             <span className="font-mono text-[11px] tabular-nums text-[var(--text-tertiary)]">
@@ -296,8 +296,18 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
             </span>
           </header>
 
-          <div role="list">
-            {section.jobs.map((job) => (
+          <div className="overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)]">
+            {/* Mono column header — the instrument-cluster label row (1e). */}
+            <div className="hidden grid-cols-[auto_minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] items-center gap-x-3 border-b border-[var(--border-subtle)] px-2 py-2 font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] @[680px]:grid">
+              <span>Match</span>
+              <span>Role</span>
+              <span>Company</span>
+              <span>Location</span>
+              <span aria-hidden />
+            </div>
+
+            <div role="list">
+              {section.jobs.map((job) => (
               <Row
                 key={job.id}
                 job={job}
@@ -318,6 +328,7 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
                 onAction={(type, note) => sendFeedback(job, type, note)}
               />
             ))}
+            </div>
           </div>
         </section>
       ))}
@@ -385,10 +396,10 @@ function Row({
           onMouseEnter={onFocusRow}
           data-focused={focused || undefined}
           className={cn(
-            "grid cursor-pointer items-center gap-x-3 border-b border-[var(--border-subtle)] px-2 py-[7px]",
+            "grid cursor-pointer items-center gap-x-3 border-b border-[var(--border-subtle)] px-2 py-[7px] last:border-b-0",
             "grid-cols-[auto_minmax(0,1fr)_auto] @[480px]:grid-cols-[auto_minmax(0,1.8fr)_minmax(0,1fr)_auto] @[680px]:grid-cols-[auto_minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto]",
             "transition-colors duration-150",
-            focused ? "bg-[var(--bg-hover)]" : "hover:bg-[var(--bg-elevated)]",
+            focused ? "bg-[var(--bg-overlay)]" : "hover:bg-[var(--bg-hover)]",
             alarming && "severity-pulse",
             trusted && "shadow-[inset_2px_0_0_0_rgba(87,171,90,0.4)]",
           )}
@@ -408,7 +419,7 @@ function Row({
               <SeverityBadge key={kind} kind={kind} />
             ))}
             {verdict && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-[var(--success-400)]">
+              <span className="verdict-pop inline-flex items-center gap-0.5 rounded-full bg-[color-mix(in_srgb,var(--success-400)_14%,transparent)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--success-500)] ring-1 ring-inset ring-[color-mix(in_srgb,var(--success-400)_35%,transparent)]">
                 <Check className="h-3 w-3" />
                 {verdict === "applied" ? "applied" : "noted"}
               </span>
@@ -539,10 +550,10 @@ function RowDetail({
       <div className="grid gap-3 @[640px]:grid-cols-[3fr_2fr]">
         {job.ai_verdict ? (
           <div className="rounded-lg bg-[var(--bg-elevated)]/70 p-3 shadow-[var(--shadow-recessed)]">
-            <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-[var(--text-tertiary)]">
+            <p className="mb-1.5 font-mono text-[10px] font-medium uppercase tracking-wider text-[var(--highlight-600)]">
               Why the AI picked it
             </p>
-            <p className="text-[12.5px] leading-relaxed text-[var(--text-secondary)]">
+            <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
               {job.ai_verdict}
             </p>
           </div>

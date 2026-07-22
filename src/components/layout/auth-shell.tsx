@@ -1,6 +1,4 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { Logo } from "@/components/brand/logo";
+import { Masthead } from "@/components/layout/masthead";
 
 interface AuthShellProps {
   title: string;
@@ -12,16 +10,7 @@ interface AuthShellProps {
 export function AuthShell({ title, subtitle, footer, children }: AuthShellProps) {
   return (
     <div className="relative flex min-h-screen flex-col">
-      <header className="relative z-10 flex h-16 items-center px-6">
-        <Logo />
-        <Link
-          href="/"
-          className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Home
-        </Link>
-      </header>
+      <Masthead variant="back" />
 
       <main className="relative z-10 flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-[400px] animate-fade-in-up">
