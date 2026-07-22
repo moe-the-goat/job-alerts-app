@@ -219,7 +219,7 @@ function FrequencyCard({
         "group flex flex-col items-start rounded-lg border px-3 py-3 text-left transition-all duration-150 outline-none",
         "focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-base)]",
         selected
-          ? "border-[var(--accent-500)]/60 bg-[var(--accent-500)]/10 ring-1 ring-[var(--accent-500)]/30"
+          ? "border-[var(--highlight-400)]/50 bg-[var(--highlight-400)]/12 ring-1 ring-[var(--highlight-400)]/35"
           : "border-[var(--border-muted)] bg-[var(--bg-elevated)]/60 hover:border-[var(--border-strong)] hover:bg-[var(--bg-overlay)]/80",
       ].join(" ")}
     >
@@ -227,7 +227,7 @@ function FrequencyCard({
         className={[
           "text-[13.5px] font-medium",
           selected
-            ? "text-[var(--accent-300)]"
+            ? "text-[var(--highlight-600)]"
             : "text-[var(--text-primary)]",
         ].join(" ")}
       >
@@ -260,14 +260,14 @@ function MinMatchCard({
         "group flex flex-col items-start rounded-lg border px-3 py-3 text-left transition-all duration-150 outline-none",
         "focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-base)]",
         selected
-          ? "border-[var(--accent-500)]/60 bg-[var(--accent-500)]/10 ring-1 ring-[var(--accent-500)]/30"
+          ? "border-[var(--highlight-400)]/50 bg-[var(--highlight-400)]/12 ring-1 ring-[var(--highlight-400)]/35"
           : "border-[var(--border-muted)] bg-[var(--bg-elevated)]/60 hover:border-[var(--border-strong)] hover:bg-[var(--bg-overlay)]/80",
       ].join(" ")}
     >
       <div
         className={[
           "text-[13.5px] font-medium",
-          selected ? "text-[var(--accent-300)]" : "text-[var(--text-primary)]",
+          selected ? "text-[var(--highlight-600)]" : "text-[var(--text-primary)]",
         ].join(" ")}
       >
         {label}
