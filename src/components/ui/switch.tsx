@@ -42,7 +42,7 @@ export function Switch({
           "focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-base)]",
           "disabled:opacity-50 disabled:cursor-not-allowed",
           checked
-            ? "bg-[var(--accent-500)]"
+            ? "bg-[var(--mast)]"
             : "bg-[var(--bg-overlay)] ring-1 ring-inset ring-[var(--border-muted)]",
         )}
       >

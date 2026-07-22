@@ -35,10 +35,10 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
             "bg-[var(--surface-recessed)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]",
             "border border-[var(--border-muted)] shadow-[var(--shadow-recessed)]",
             "outline-none transition-all duration-150 ease-out resize-y",
-            "focus:border-[var(--accent-500)] focus:shadow-[var(--shadow-recessed),0_0_0_3px_rgba(83,155,245,0.18)]",
+            "focus:border-[var(--accent-500)] focus:shadow-[var(--shadow-recessed),0_0_0_3px_color-mix(in_srgb,var(--accent-500)_18%,transparent)]",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             error &&
-              "border-[var(--danger-400)] focus:border-[var(--danger-400)] focus:shadow-[var(--shadow-recessed),0_0_0_3px_rgba(229,83,75,0.18)]",
+              "border-[var(--danger-400)] focus:border-[var(--danger-400)] focus:shadow-[var(--shadow-recessed),0_0_0_3px_color-mix(in_srgb,var(--danger-400)_18%,transparent)]",
             className,
           )}
           {...props}
