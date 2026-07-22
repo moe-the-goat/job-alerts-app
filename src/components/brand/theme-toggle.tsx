@@ -37,9 +37,9 @@ export function ThemeToggle({
     () => "light" as const, // server + first hydration snapshot
   );
   const isDark = theme === "dark";
+  const btnRef = React.useRef<HTMLButtonElement>(null);
 
-  function toggle() {
-    const next = isDark ? "light" : "dark";
+  function applyTheme(next: "light" | "dark") {
     document.documentElement.setAttribute("data-theme", next);
     try {
       localStorage.setItem("theme", next);
@@ -49,6 +49,40 @@ export function ThemeToggle({
     window.dispatchEvent(new Event("themechange"));
   }
 
+  function toggle() {
+    const next = isDark ? "light" : "dark";
+
+    // Progressive enhancement: Chromium reveals the new theme in a circle
+    // growing from the button (View Transitions API). Everywhere else, and
+    // when the user prefers reduced motion, we just flip instantly.
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const startVT = (
+      document as Document & {
+        startViewTransition?: (cb: () => void) => unknown;
+      }
+    ).startViewTransition;
+
+    if (!startVT || reduce) {
+      applyTheme(next);
+      return;
+    }
+
+    const rect = btnRef.current?.getBoundingClientRect();
+    const x = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const y = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
+    const r = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y),
+    );
+    const root = document.documentElement;
+    root.style.setProperty("--vt-x", `${x}px`);
+    root.style.setProperty("--vt-y", `${y}px`);
+    root.style.setProperty("--vt-r", `${r}px`);
+    startVT.call(document, () => applyTheme(next));
+  }
+
   const toneClasses =
     tone === "onMast"
       ? "text-[var(--mast-fg-dim)] hover:bg-white/10 hover:text-[var(--mast-fg)] focus-visible:ring-white/40"
@@ -56,6 +90,7 @@ export function ThemeToggle({
 
   return (
     <button
+      ref={btnRef}
       type="button"
       onClick={toggle}
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}

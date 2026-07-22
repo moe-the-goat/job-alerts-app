@@ -1,3 +1,4 @@
+import { CountUp } from "@/components/ui/count-up";
 import type { InsightsData } from "../_lib/insights-data";
 
 /**
@@ -121,7 +122,7 @@ function Stat({
           tone === "accent" ? "text-[var(--highlight-500)]" : "text-[var(--text-primary)]"
         }`}
       >
-        {value}
+        {typeof value === "number" ? <CountUp value={value} /> : value}
       </div>
       <div className="mt-0.5 font-mono text-[11px] uppercase tracking-wider text-[var(--text-tertiary)]">
         {label}

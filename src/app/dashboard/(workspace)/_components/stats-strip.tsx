@@ -1,6 +1,16 @@
 import { AlertCircle, CheckCircle2, Clock, Loader2 } from "lucide-react";
 import type { LastRun } from "../../_lib/dashboard-state";
+import { CountUp } from "@/components/ui/count-up";
 import { AutoRefresh, ElapsedSince } from "./run-status-live";
+
+/** A 3px amber sweep shown under the cluster while a run is in flight. */
+function RunBar() {
+  return (
+    <div className="run-bar-track mt-3" aria-hidden>
+      <div className="run-bar-fill" />
+    </div>
+  );
+}
 
 interface StatsStripProps {
   lastRun: LastRun | null;
@@ -31,6 +41,7 @@ export function StatsStrip({ lastRun, nextRunAt, pendingDispatchAt }: StatsStrip
             </div>
           </div>
         </div>
+        <RunBar />
       </div>
     );
   }
@@ -109,6 +120,7 @@ export function StatsStrip({ lastRun, nextRunAt, pendingDispatchAt }: StatsStrip
           </dl>
         )}
       </div>
+      {status === "running" && <RunBar />}
     </div>
   );
 }
@@ -142,7 +154,7 @@ function Metric({
           accent ? "text-[var(--highlight-500)]" : "text-[var(--text-primary)]",
         ].join(" ")}
       >
-        {value.toLocaleString()}
+        <CountUp value={value} />
       </dd>
     </div>
   );
