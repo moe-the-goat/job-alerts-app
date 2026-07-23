@@ -85,7 +85,7 @@ export function ThemeToggle({
 
   const toneClasses =
     tone === "onMast"
-      ? "text-[var(--mast-fg)] hover:bg-white/15 focus-visible:ring-white/40"
+      ? "text-[var(--mast-fg)] bg-white/10 hover:bg-white/20 focus-visible:ring-white/40"
       : "text-[var(--text-secondary)] hover:bg-[var(--bg-overlay)] hover:text-[var(--text-primary)] focus-visible:ring-[var(--ring)]";
 
   return (
