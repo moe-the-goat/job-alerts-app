@@ -16,7 +16,7 @@ export function SignOutButton({
       <form action={signOutAction}>
         <button
           type="submit"
-          className="inline-flex h-8 items-center gap-2 rounded-md px-3 text-sm font-medium text-[var(--mast-fg-dim)] outline-none transition-colors hover:bg-white/10 hover:text-[var(--mast-fg)] focus-visible:ring-2 focus-visible:ring-white/40"
+          className="inline-flex h-8 items-center gap-2 rounded-md border border-white/20 bg-white/5 px-3 text-sm font-medium text-[var(--mast-fg)] outline-none transition-colors hover:border-white/30 hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-white/40"
         >
           <LogOut className="h-3.5 w-3.5" />
           Sign out
