@@ -21,7 +21,7 @@
   /* ===== LIGHT value bank ========================================= */
   --lt-mast:        #12233a;   /* masthead / primary dark surface & primary button */
   --lt-mast-fg:     #f4f8fd;   /* light text on the navy masthead   */
-  --lt-mast-fg-dim: rgba(244, 248, 253, 0.62);
+  --lt-mast-fg-dim: rgba(244, 248, 253, 0.82);  /* dimmer masthead text — still clearly legible */
   --lt-bg-base:       #f6f7f9;   /* cool paper                       */
   --lt-bg-elevated:   #ffffff;   /* cards / raised surfaces           */
   --lt-bg-overlay:    #eef1f5;   /* subtle fills, hover on light      */
@@ -70,7 +70,7 @@
   /* ===== DARK value bank (night sky) ============================== */
   --dk-mast:        #0b1220;   /* near-black navy masthead           */
   --dk-mast-fg:     #eaf0f8;
-  --dk-mast-fg-dim: rgba(234, 240, 248, 0.60);
+  --dk-mast-fg-dim: rgba(234, 240, 248, 0.82);
   --dk-bg-base:       #0f1626;   /* pre-dawn navy-black               */
   --dk-bg-elevated:   #151f33;
   --dk-bg-overlay:    #1c2942;
