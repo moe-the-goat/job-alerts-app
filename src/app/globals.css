@@ -344,13 +344,12 @@ body {
   color: var(--selection-fg);
 }
 
-input,
-button,
-textarea,
-select {
-  font: inherit;
-  color: inherit;
-}
+/* NOTE: no custom `input, button, … { color: inherit }` reset here. Tailwind's
+ * preflight already applies font/color inherit to form elements inside @layer
+ * base, where utilities (e.g. text-white on a button) correctly win. Repeating
+ * it UNLAYERED — as we used to — beat those utilities in the cascade, so a
+ * primary button's white text lost to the dark inherited color and vanished on
+ * the navy button. Leaving it to preflight keeps text-white visible. */
 
 button {
   cursor: pointer;
