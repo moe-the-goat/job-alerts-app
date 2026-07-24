@@ -9,6 +9,7 @@ import { PathsSection } from "./paths-section";
 import { SearchesSection } from "./searches-section";
 import { AiLearningSection } from "./ai-learning-section";
 import { GithubSection } from "./github-section";
+import { FinishBar } from "./finish-bar";
 import type { SearchRow } from "./types";
 
 export const metadata: Metadata = {
@@ -102,6 +103,8 @@ export default async function PreferencesPage() {
         />
 
         <GithubSection initialUsername={githubUsername} />
+
+        <FinishBar />
       </div>
     </AppShell>
   );
