@@ -60,7 +60,7 @@ function DeadLink({ reason }: { reason?: string }) {
       </p>
       <a
         href="/dashboard/feedback"
-        className="mt-6 rounded-lg bg-[var(--accent-500)] px-5 py-2.5 text-[13.5px] font-medium text-[var(--bg-base)]"
+        className="mt-6 rounded-lg bg-[var(--accent-500)] px-5 py-2.5 text-[13.5px] font-medium text-white"
       >
         Open the dashboard
       </a>

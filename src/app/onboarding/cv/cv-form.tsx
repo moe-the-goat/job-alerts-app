@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   CheckCircle2,
@@ -45,6 +46,16 @@ export function CvForm({
     ? `upload-${uploadState.chars}`
     : "initial";
 
+  // A successful upload stores the CV, so guide the user forward to their
+  // preferences — after a short beat that leaves room to glance at the parsed
+  // text on the right first. Navigating away yourself cancels it.
+  const router = useRouter();
+  useEffect(() => {
+    if (!uploadState?.ok) return;
+    const t = setTimeout(() => router.push("/preferences"), 3000);
+    return () => clearTimeout(t);
+  }, [uploadState?.ok, router]);
+
   return (
     <div className="grid gap-8 lg:grid-cols-[1.1fr_1fr]">
       <section
@@ -65,6 +76,7 @@ export function CvForm({
           <FormFeedback variant="success" message={uploadState.message} />
         )}
         {uploadState?.ok && <CvGaps gaps={uploadState.gaps} />}
+        {uploadState?.ok && <RedirectingHint />}
 
         {(initialPath || uploadState?.ok) && (
           <p className="mt-4 text-xs text-[var(--text-tertiary)]">
@@ -100,6 +112,15 @@ function CvEditor({ initial }: { initial: string }) {
     undefined,
   );
 
+  // Saving the text is the deliberate "my CV is ready" step — move on to
+  // preferences right after.
+  const router = useRouter();
+  useEffect(() => {
+    if (!saveState?.ok) return;
+    const t = setTimeout(() => router.push("/preferences"), 1800);
+    return () => clearTimeout(t);
+  }, [saveState?.ok, router]);
+
   return (
     <form action={saveAction} className="space-y-3">
       <Textarea
@@ -133,6 +154,7 @@ function CvEditor({ initial }: { initial: string }) {
         <FormFeedback variant="success" message={saveState.message} />
       )}
       {saveState?.ok && <CvGaps gaps={saveState.gaps} />}
+      {saveState?.ok && <RedirectingHint />}
 
       <SaveTextButton />
     </form>
@@ -281,6 +303,15 @@ function SaveTextButton() {
       {!pending && <Save className="h-4 w-4" />}
       {pending ? "Saving…" : "Save text"}
     </Button>
+  );
+}
+
+function RedirectingHint() {
+  return (
+    <p className="mt-2 flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+      <Loader2 className="h-3 w-3 animate-spin" />
+      Taking you to your preferences…
+    </p>
   );
 }
 
