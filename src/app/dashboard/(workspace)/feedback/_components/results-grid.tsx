@@ -172,6 +172,27 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
     rowRefs.current.get(id)?.scrollIntoView({ block: "nearest" });
   }, []);
 
+  // Stable row callbacks. Each row is memoized, so passing fresh inline
+  // lambdas per render would defeat that and re-render every row on each
+  // J/K keypress — the whole list repainting to move one highlight.
+  const registerRow = React.useCallback((id: number, el: HTMLDivElement | null) => {
+    if (el) rowRefs.current.set(id, el);
+    else rowRefs.current.delete(id);
+  }, []);
+
+  const handleFocusRow = React.useCallback((id: number) => setFocusedId(id), []);
+
+  const handleToggleExpand = React.useCallback((id: number) => {
+    setFocusedId(id);
+    setExpandedId((open) => (open === id ? null : id));
+  }, []);
+
+  const handleAction = React.useCallback(
+    (job: JobWithFeedback, type: FeedbackType, note?: string | null) =>
+      sendFeedback(job, type, note),
+    [sendFeedback],
+  );
+
   // Register with the command palette while mounted.
   React.useEffect(() => {
     registerGridAdapter({
@@ -316,16 +337,10 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
                 verdict={feedbackByJob[job.id] ?? null}
                 pending={pendingByJob[job.id] ?? null}
                 error={errorByJob[job.id] ?? null}
-                rowRef={(el) => {
-                  if (el) rowRefs.current.set(job.id, el);
-                  else rowRefs.current.delete(job.id);
-                }}
-                onFocusRow={() => setFocusedId(job.id)}
-                onToggleExpand={() => {
-                  setFocusedId(job.id);
-                  setExpandedId((open) => (open === job.id ? null : job.id));
-                }}
-                onAction={(type, note) => sendFeedback(job, type, note)}
+                registerRow={registerRow}
+                onFocusRow={handleFocusRow}
+                onToggleExpand={handleToggleExpand}
+                onAction={handleAction}
               />
             ))}
             </div>
@@ -336,14 +351,20 @@ export function ResultsGrid({ jobs }: ResultsGridProps) {
   );
 }
 
-function Row({
+/**
+ * One result row. Memoized: with a full run on screen, moving the J/K focus or
+ * writing a verdict would otherwise re-render every row (each of which carries
+ * a context menu, tooltip and score chip). Its callbacks take the job id so the
+ * parent can hand down stable references.
+ */
+const Row = React.memo(function Row({
   job,
   focused,
   expanded,
   verdict,
   pending,
   error,
-  rowRef,
+  registerRow,
   onFocusRow,
   onToggleExpand,
   onAction,
@@ -354,11 +375,24 @@ function Row({
   verdict: FeedbackType | null;
   pending: FeedbackType | null;
   error: string | null;
-  rowRef: (el: HTMLDivElement | null) => void;
-  onFocusRow: () => void;
-  onToggleExpand: () => void;
-  onAction: (type: FeedbackType, note?: string | null) => void | Promise<boolean>;
+  registerRow: (id: number, el: HTMLDivElement | null) => void;
+  onFocusRow: (id: number) => void;
+  onToggleExpand: (id: number) => void;
+  onAction: (
+    job: JobWithFeedback,
+    type: FeedbackType,
+    note?: string | null,
+  ) => void | Promise<boolean>;
 }) {
+  // Bind this row's job once so the menu/detail keep their existing signature.
+  const act = React.useCallback(
+    (type: FeedbackType, note?: string | null) => onAction(job, type, note),
+    [onAction, job],
+  );
+  const setRef = React.useCallback(
+    (el: HTMLDivElement | null) => registerRow(job.id, el),
+    [registerRow, job.id],
+  );
   const severities = pickSeverities(job);
   const alarming = severities.includes("scam") || severities.includes("suspicious");
   const trusted = severities.includes("trusted");
@@ -372,7 +406,7 @@ function Row({
       destructive: a.destructive,
       // Only the current verdict is disabled — tapping another replaces it.
       disabled: verdict === a.type,
-      onSelect: () => onAction(a.type),
+      onSelect: () => act(a.type),
     })),
     ...(job.job_url
       ? [
@@ -390,10 +424,10 @@ function Row({
 
   return (
     <ContextMenu items={menuItems}>
-      <div role="listitem" ref={rowRef}>
+      <div role="listitem" ref={setRef}>
         <div
-          onClick={onToggleExpand}
-          onMouseEnter={onFocusRow}
+          onClick={() => onToggleExpand(job.id)}
+          onMouseEnter={() => onFocusRow(job.id)}
           data-focused={focused || undefined}
           className={cn(
             "grid cursor-pointer items-center gap-x-3 border-b border-[var(--border-subtle)] px-2 py-[7px] last:border-b-0",
@@ -453,12 +487,12 @@ function Row({
         )}
 
         {expanded && (
-          <RowDetail job={job} verdict={verdict} pending={pending} onAction={onAction} />
+          <RowDetail job={job} verdict={verdict} pending={pending} onAction={act} />
         )}
       </div>
     </ContextMenu>
   );
-}
+});
 
 /** The "⋯" affordance — same items as right-click, for mouse-first users. */
 function RowMenuButton({ items }: { items: ContextMenuItem[] }) {

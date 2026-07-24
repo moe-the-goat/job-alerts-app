@@ -355,6 +355,31 @@ button {
   cursor: pointer;
 }
 
+/* Touch responsiveness: tells the browser these targets never double-tap-zoom,
+ * which removes the ~300ms click delay mobile browsers otherwise wait out.
+ * Every tap in the app feels immediate instead of slightly lagged. */
+button,
+a,
+label,
+select,
+summary,
+[role="button"],
+[role="menuitem"],
+[role="switch"],
+[role="tab"] {
+  touch-action: manipulation;
+}
+
+/* Inner scrollers (CV preview, tailor output, command palette, tracker board)
+ * shouldn't hand their momentum to the page when they hit an end — that
+ * "scroll jumps to the whole page" effect is the main scrolling annoyance on
+ * trackpads and touch. Keeps each pane's scroll self-contained. */
+.overflow-y-auto,
+.overflow-x-auto,
+.overflow-auto {
+  overscroll-behavior: contain;
+}
+
 button:disabled {
   cursor: not-allowed;
 }
