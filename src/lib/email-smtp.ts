@@ -20,6 +20,39 @@ import nodemailer from "nodemailer";
 const SMTP_HOST = process.env.SMTP_SERVER || "smtp.gmail.com";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
 
+/** Friendly sender name; matches the worker's SENDER_DISPLAY_NAME. */
+const SENDER_DISPLAY_NAME = "Job Alerts";
+
+/**
+ * Last-resort text/plain rendering, so a caller that forgets `text` still
+ * sends multipart rather than HTML-only. Keeps link targets visible — a text
+ * part whose links vanished is useless to whoever reads it.
+ */
+export function htmlToText(html: string): string {
+  if (!html) return "";
+  return html
+    .replace(/<(script|style|head)\b[\s\S]*?<\/\1>/gi, " ")
+    .replace(
+      /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
+      (_m, href, label) => `${String(label).replace(/<[^>]+>/g, "").trim()} (${href})`,
+    )
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s*\n\s*\n+/g, "\n\n")
+    .split("\n")
+    .map((l) => l.trim())
+    .join("\n")
+    .trim();
+}
+
 export interface SendResult {
   ok: boolean;
   error?: string;
@@ -57,11 +90,18 @@ export async function sendEmail({ to, subject, html, text }: SendArgs): Promise<
 
   try {
     await transporter.sendMail({
-      from: sender,
+      // Display name + Reply-To: a bare address reads as machine-generated
+      // bulk to spam filters, and these are the emails that carry the invite
+      // link — they cannot afford to land in a junk folder.
+      from: { name: SENDER_DISPLAY_NAME, address: sender },
+      replyTo: sender,
       to,
       subject,
-      text,
+      // Always send a text/plain alternative alongside the HTML: HTML-only
+      // mail is a long-standing spam signal.
+      text: text ?? htmlToText(html),
       html,
+      headers: { "Auto-Submitted": "auto-generated" },
     });
     console.info("[email-smtp] OK ->", redactEmail(to));
     return { ok: true };
