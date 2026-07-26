@@ -207,7 +207,13 @@ export async function resendInviteAction(
 
 /** Permanently delete a user account and everything it owns. The auth user is
  *  removed; profiles/preferences/runs/job_results/feedback/etc. cascade via their
- *  FKs (on delete cascade). Irreversible — the UI double-confirms. */
+ *  FKs (on delete cascade). Irreversible — the UI double-confirms.
+ *
+ *  access_requests is keyed by EMAIL, not by user id, so it has no FK to
+ *  auth.users and does NOT cascade. Left behind, its `approved` row made the
+ *  address unusable: signing up again was refused with "already approved — try
+ *  logging in", while logging in failed because the account was gone. So the
+ *  request history is cleared here too and a deleted address is free again. */
 export async function deleteUserAction(
   formData: FormData,
 ): Promise<AdminActionState> {
@@ -222,11 +228,30 @@ export async function deleteUserAction(
   }
 
   const admin = createAdminClient();
+
+  // Read the address BEFORE deleting — afterwards the auth user is gone and
+  // there's no way back to it.
+  const { data: existing } = await admin.auth.admin.getUserById(userId);
+  const email = existing?.user?.email?.trim().toLowerCase() ?? "";
+
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) return { ok: false, error: error.message };
 
+  // Clear the access-request history by id AND by address: rows created before
+  // created_user_id existed only carry the email. Best-effort — the account is
+  // already gone, so a cleanup failure must not report the delete as failed.
+  await admin.from("access_requests").delete().eq("created_user_id", userId);
+  if (email) {
+    await admin.from("access_requests").delete().eq("email", email);
+  }
+
   revalidatePath("/admin");
-  return { ok: true, message: "Account deleted." };
+  return {
+    ok: true,
+    message: email
+      ? `Account deleted. ${email} can sign up again.`
+      : "Account deleted.",
+  };
 }
 
 /** Mark a stalled run (stuck in 'running') as failed so the user isn't blocked

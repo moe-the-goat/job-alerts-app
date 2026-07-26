@@ -25,12 +25,25 @@ vi.mock("@/lib/supabase/server", () => ({
 
 // Admin client: a chainable stub recording the access_requests insert.
 const adminState = {
-  existing: null as { id: number; status: string } | null,
+  existing: null as
+    | { id: number; status: string; created_user_id?: string | null }
+    | null,
   insertPayload: null as Record<string, unknown> | null,
   insertError: null as { message: string } | null,
+  // Auth users that still exist, keyed by id — lets a test model an
+  // access_request whose account has since been deleted.
+  authUsers: {} as Record<string, { id: string } | undefined>,
+  deletes: [] as Array<[string, unknown]>,
 };
 function makeAdminClient() {
   return {
+    auth: {
+      admin: {
+        getUserById: async (id: string) => ({
+          data: { user: adminState.authUsers[id] ?? null },
+        }),
+      },
+    },
     from() {
       return {
         select() {
@@ -44,6 +57,14 @@ function makeAdminClient() {
         },
         limit() {
           return this;
+        },
+        delete() {
+          return {
+            eq: async (col: string, val: unknown) => {
+              adminState.deletes.push([col, val]);
+              return { error: null };
+            },
+          };
         },
         maybeSingle: async () => ({ data: adminState.existing }),
         insert(payload: Record<string, unknown>) {
@@ -82,6 +103,8 @@ beforeEach(() => {
   adminState.existing = null;
   adminState.insertPayload = null;
   adminState.insertError = null;
+  adminState.authUsers = {};
+  adminState.deletes = [];
   process.env.NEXT_PUBLIC_SITE_URL = "https://app.example.com";
 });
 
@@ -140,6 +163,43 @@ describe("signupAction (request-first)", () => {
     expect(arg.to).toBe("mohaabuhijleh@gmail.com");
     expect(arg.text).toMatch(/action=approve/);
     expect(arg.text).toMatch(/action=reject/);
+  });
+
+  // --- deleted-account recovery ------------------------------------------
+  // access_requests is keyed by email and has no FK to auth.users, so deleting
+  // an account leaves its approved row behind. That row used to strand the
+  // address permanently: signup said "already approved, go log in" while login
+  // failed because the account no longer existed.
+
+  it("lets a deleted account's email sign up again and clears the dead row", async () => {
+    adminState.existing = { id: 42, status: "approved", created_user_id: "u-gone" };
+    adminState.authUsers = {}; // the account was deleted
+
+    const res = await signupAction(
+      undefined,
+      form({ email: "Ada@Example.com", first_name: "Ada", last_name: "Lovelace" }),
+    );
+
+    expect(res.ok).toBe(true);
+    expect(res.message).toMatch(/request received/i);
+    // Filed a genuinely fresh request...
+    expect(adminState.insertPayload).toMatchObject({ email: "ada@example.com" });
+    // ...and removed the stale row so it can't block again.
+    expect(adminState.deletes).toContainEqual(["id", 42]);
+  });
+
+  it("still blocks when the approved account really does exist", async () => {
+    adminState.existing = { id: 43, status: "approved", created_user_id: "u-live" };
+    adminState.authUsers = { "u-live": { id: "u-live" } };
+
+    const res = await signupAction(
+      undefined,
+      form({ email: "ada@example.com", first_name: "Ada", last_name: "Lovelace" }),
+    );
+
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/already approved/i);
+    expect(adminState.deletes).toHaveLength(0); // nothing deleted
   });
 
   it("short-circuits when an approved request already exists", async () => {

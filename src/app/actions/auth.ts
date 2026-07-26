@@ -75,16 +75,36 @@ export async function signupAction(
   // a duplicate request. (Best-effort; ignore lookup errors.)
   const { data: existing } = await admin
     .from("access_requests")
-    .select("id, status")
+    .select("id, status, created_user_id")
     .eq("email", email)
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle<{ id: number; status: string }>();
+    .maybeSingle<{
+      id: number;
+      status: string;
+      created_user_id: string | null;
+    }>();
   if (existing?.status === "approved") {
-    return {
-      ok: false,
-      error: "This email is already approved — try logging in instead.",
-    };
+    // An approved row whose account no longer exists is STALE — the account was
+    // deleted (access_requests has no FK to auth.users, so it doesn't cascade).
+    // Blocking on it would strand the address forever: signup says "already
+    // approved, go log in" while login fails because there's nothing to log
+    // into. Verify the account is really there before refusing.
+    let accountAlive = true;
+    if (existing.created_user_id) {
+      const { data: found } = await admin.auth.admin.getUserById(
+        existing.created_user_id,
+      );
+      accountAlive = Boolean(found?.user);
+    }
+    if (accountAlive) {
+      return {
+        ok: false,
+        error: "This email is already approved — try logging in instead.",
+      };
+    }
+    // Stale: drop the dead row and let this become a fresh request below.
+    await admin.from("access_requests").delete().eq("id", existing.id);
   }
   if (existing?.status === "pending") {
     return {
