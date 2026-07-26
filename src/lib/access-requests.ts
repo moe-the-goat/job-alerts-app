@@ -110,7 +110,9 @@ export async function approveRequest(
     : "";
   await sendEmail({
     to: reqRow.email,
-    subject: "You're in — set up your Job Alerts account",
+    // Plain and transactional. "You're in 🎉" reads as promotional, and Gmail
+    // is unforgiving about hype in a message that also carries a sign-up link.
+    subject: "Set up your Job Alerts account",
     html: approvedEmailHtml(reqRow.first_name, claimUrl),
     text: approvedEmailText(reqRow.first_name, claimUrl),
   });
@@ -133,7 +135,7 @@ export async function resendClaimEmail(
   try {
     await sendEmail({
       to: email,
-      subject: "Your Job Alerts account — set it up",
+      subject: "Set up your Job Alerts account",
       html: approvedEmailHtml(firstName || "there", claimUrl),
       text: approvedEmailText(firstName || "there", claimUrl),
     });
@@ -179,55 +181,98 @@ export function adminNotificationHtml(
   const note = reqRow.note
     ? `<p style="margin:8px 0;color:#444;"><b>Note:</b> ${escapeHtml(reqRow.note)}</p>`
     : "";
-  return `
-    <div style="font-family:system-ui,sans-serif;max-width:520px;">
-      <h2 style="margin:0 0 4px;">New access request</h2>
-      <p style="margin:8px 0;color:#444;">Someone asked to join the closed beta.</p>
+  return emailShell(
+    `<h1 style="margin:0 0 4px;font-size:20px;">New access request</h1>
+      <p style="margin:8px 0;color:#4c5a70;">Someone asked to join the closed beta.</p>
       <table style="border-collapse:collapse;margin:12px 0;font-size:14px;">
-        <tr><td style="padding:2px 12px 2px 0;color:#777;">Name</td><td>${escapeHtml(reqRow.first_name)} ${escapeHtml(reqRow.last_name)}</td></tr>
-        <tr><td style="padding:2px 12px 2px 0;color:#777;">Email</td><td>${escapeHtml(reqRow.email)}</td></tr>
+        <tr><td style="padding:2px 12px 2px 0;color:#8b95a5;">Name</td><td>${escapeHtml(reqRow.first_name)} ${escapeHtml(reqRow.last_name)}</td></tr>
+        <tr><td style="padding:2px 12px 2px 0;color:#8b95a5;">Email</td><td>${escapeHtml(reqRow.email)}</td></tr>
       </table>
       ${note}
       <p style="margin:16px 0;">
-        <a href="${approveUrl}" style="background:#3b82e0;color:#fff;text-decoration:none;padding:9px 16px;border-radius:6px;font-weight:600;">Approve</a>
+        <a href="${approveUrl}" style="background:#12233a;color:#fff;text-decoration:none;padding:10px 18px;border-radius:10px;font-weight:600;display:inline-block;">Approve</a>
         &nbsp;&nbsp;
-        <a href="${rejectUrl}" style="background:#e5534b;color:#fff;text-decoration:none;padding:9px 16px;border-radius:6px;font-weight:600;">Reject</a>
+        <a href="${rejectUrl}" style="background:#b3372b;color:#fff;text-decoration:none;padding:10px 18px;border-radius:10px;font-weight:600;display:inline-block;">Reject</a>
       </p>
-      <p style="margin:8px 0;color:#999;font-size:12px;">Approving sends them an invite link to set a password. No password is ever shown to you.</p>
-    </div>`;
+      <p style="margin:8px 0;color:#8b95a5;font-size:12px;">Approving emails them a setup link. No password is ever shown to you.</p>`,
+    `${reqRow.first_name} ${reqRow.last_name} asked to join the beta.`,
+  );
+}
+
+/**
+ * Wraps an email body in a complete, mobile-friendly HTML document.
+ *
+ * A bare `<div>` fragment (no doctype/head/body) is treated as malformed by
+ * spam filters — one of the reasons the very first email a new user gets was
+ * landing in their junk folder. `preheader` is the hidden preview line clients
+ * show beside the subject; without one they scrape whatever text comes first.
+ */
+function emailShell(bodyHtml: string, preheader: string): string {
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Job Alerts</title></head>
+<body style="margin:0;padding:24px 16px;background:#f6f7f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#131c2a;line-height:1.55;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preheader)}</div>
+<div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;padding:28px 26px;">
+${bodyHtml}
+</div>
+</body></html>`;
+}
+
+/** Shared sign-off. Saying WHY the message arrived is standard practice for
+ *  legitimate transactional mail and reads as trustworthy to filters and to
+ *  the person reading it. */
+function whyYouGotThis(extra = ""): string {
+  return `<p style="margin:22px 0 0;padding-top:14px;border-top:1px solid #e6eaf0;color:#8b95a5;font-size:12px;">
+    You're receiving this because you requested access to Job Alerts with this
+    email address.${extra ? ` ${extra}` : ""}</p>`;
 }
 
 function approvedEmailHtml(firstName: string, claimUrl: string): string {
-  const button = claimUrl
-    ? `<p style="margin:16px 0;">
-         <a href="${claimUrl}" style="background:#3b82e0;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600;">Set up your account</a>
+  // The link is shown as readable text as well as a button: a single mystery
+  // button with no visible destination is the shape of a phishing email, and
+  // both filters and cautious humans treat it that way.
+  const action = claimUrl
+    ? `<p style="margin:22px 0 10px;">
+         <a href="${claimUrl}" style="background:#12233a;color:#ffffff;text-decoration:none;padding:11px 20px;border-radius:10px;font-weight:600;display:inline-block;">Set up your account</a>
        </p>
-       <p style="color:#777;font-size:13px;">On that page, enter your email and we'll send you a one-time code to finish setting up and choose a password.</p>`
-    : `<p>Head to the app and use “Set up your account” to finish.</p>`;
-  return `
-    <div style="font-family:system-ui,sans-serif;max-width:520px;">
-      <h2>You're in, ${escapeHtml(firstName)} 🎉</h2>
-      <p>Your access to Job Alerts has been approved. Click below to set up your
-      account — we'll email you a quick one-time code to verify it's you, then
-      you'll choose a password and land in your dashboard.</p>
-      ${button}
-      <p style="color:#777;font-size:13px;">If the button doesn't work, the link is also safe to copy into your browser.</p>
-    </div>`;
+       <p style="margin:0 0 4px;color:#4c5a70;font-size:13px;">Or open this link:</p>
+       <p style="margin:0;font-size:13px;word-break:break-all;"><a href="${claimUrl}" style="color:#1f3a5f;">${escapeHtml(claimUrl)}</a></p>`
+    : `<p style="margin:22px 0;">Open the app and choose &ldquo;Set up your account&rdquo; to finish.</p>`;
+  return emailShell(
+    `<h1 style="margin:0 0 12px;font-size:20px;">Your access is approved, ${escapeHtml(firstName)}</h1>
+     <p style="margin:0 0 10px;color:#4c5a70;">Job Alerts scores job listings against your CV and emails you the ones that match. Your request to join the beta has been approved.</p>
+     <p style="margin:0;color:#4c5a70;">To finish, set up your account: we'll email you a 6-digit code to confirm it's you, then you choose a password.</p>
+     ${action}
+     ${whyYouGotThis("If it wasn't you, you can ignore this message — the account stays inactive until setup is completed.")}`,
+    `Set up your Job Alerts account — one 6-digit code and a password.`,
+  );
 }
 
 function approvedEmailText(firstName: string, claimUrl: string): string {
-  const where = claimUrl ? `\n\nSet up your account: ${claimUrl}` : "";
-  return `You're in, ${firstName}! Your Job Alerts access is approved. Set up your account, verify with a one-time code we'll email you, choose a password, and you'll reach your dashboard.${where}`;
+  const where = claimUrl ? `\n\nSet up your account:\n${claimUrl}\n` : "\n";
+  return (
+    `Your access is approved, ${firstName}.\n\n` +
+    `Job Alerts scores job listings against your CV and emails you the ones that match. ` +
+    `Your request to join the beta has been approved.\n\n` +
+    `To finish, set up your account: we'll email you a 6-digit code to confirm ` +
+    `it's you, then you choose a password.${where}` +
+    `\n--\nYou're receiving this because you requested access to Job Alerts with ` +
+    `this email address. If it wasn't you, ignore this message — the account ` +
+    `stays inactive until setup is completed.\n`
+  );
 }
 
 function rejectedEmailHtml(firstName: string): string {
-  return `
-    <div style="font-family:system-ui,sans-serif;max-width:520px;">
-      <h2>About your request, ${escapeHtml(firstName)}</h2>
-      <p>Thanks for your interest in Job Alerts. We're a small closed beta right
-      now and can't add your account at this time.</p>
-      <p style="color:#777;font-size:13px;">We may open up more spots later — feel free to try again then.</p>
-    </div>`;
+  return emailShell(
+    `<h1 style="margin:0 0 12px;font-size:20px;">About your request, ${escapeHtml(firstName)}</h1>
+     <p style="margin:0 0 10px;color:#4c5a70;">Thanks for your interest in Job Alerts. We're a small closed beta right now and can't add your account at this time.</p>
+     <p style="margin:0;color:#4c5a70;">We may open up more spots later — feel free to try again then.</p>
+     ${whyYouGotThis()}`,
+    "An update on your Job Alerts access request.",
+  );
 }
 
 function rejectedEmailText(firstName: string): string {
