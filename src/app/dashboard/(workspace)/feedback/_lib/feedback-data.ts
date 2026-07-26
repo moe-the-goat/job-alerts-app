@@ -52,6 +52,12 @@ const JOB_FIELDS =
   "description_excerpt, compensation, effort, suspicious, " +
   "pre_flagged_low_quality, pre_flagged_trusted, similarity, created_at, origin";
 
+/** A verdict row as read here; the embedded job_results is only a join filter. */
+interface FeedbackRow {
+  job_result_id: number | null;
+  feedback_type: FeedbackType;
+}
+
 export async function loadJobsForRun(
   userId: string,
   runId: number,
@@ -61,6 +67,17 @@ export async function loadJobsForRun(
   // Top-section picks only: ai_evaluated=true AND is_valid=true. The
   // lower-ranked summary (ai_evaluated=false) is reserved for a later
   // collapsed section.
+  // The feedback side is scoped to THIS run by joining through the
+  // feedback -> job_results foreign key (declared in migration 0002). Without
+  // the join it fetched every verdict the user had ever written just to
+  // annotate one run's ~25 rows, so the payload grew forever as they used the
+  // app. The join keeps it a single query, so both still run in parallel.
+  const scopedFeedback = supabase
+    .from("feedback")
+    .select("job_result_id, feedback_type, job_results!inner(run_id)")
+    .eq("user_id", userId)
+    .eq("job_results.run_id", runId);
+
   const [jobsRes, feedbackRes] = await Promise.all([
     supabase
       .from("job_results")
@@ -71,17 +88,27 @@ export async function loadJobsForRun(
       .eq("is_valid", true)
       .order("match_percentage", { ascending: false, nullsFirst: false })
       .returns<JobResult[]>(),
-    supabase
-      .from("feedback")
-      .select("job_result_id, feedback_type")
-      .eq("user_id", userId)
-      .returns<{ job_result_id: number | null; feedback_type: FeedbackType }[]>(),
+    scopedFeedback.returns<FeedbackRow[]>(),
   ]);
 
   const jobs = jobsRes.data ?? [];
+
+  // If the embedded join ever fails (relationship not exposed by PostgREST),
+  // fall back to the previous unscoped read rather than losing every verdict
+  // on the page — correctness first, the scoping is only an optimization.
+  let feedbackRows = feedbackRes.data ?? [];
+  if (feedbackRes.error) {
+    const { data } = await supabase
+      .from("feedback")
+      .select("job_result_id, feedback_type")
+      .eq("user_id", userId)
+      .returns<FeedbackRow[]>();
+    feedbackRows = data ?? [];
+  }
+
   // One verdict per job since migration 0016 — collapse to a single value.
   const feedbackByJob = new Map<number, FeedbackType>();
-  for (const row of feedbackRes.data ?? []) {
+  for (const row of feedbackRows) {
     if (row.job_result_id == null) continue;
     feedbackByJob.set(row.job_result_id, row.feedback_type);
   }
