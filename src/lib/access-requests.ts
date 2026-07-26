@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash, randomBytes } from "crypto";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email-smtp";
 
@@ -108,6 +109,13 @@ export async function approveRequest(
   const claimUrl = origin
     ? `${origin}/claim?email=${encodeURIComponent(reqRow.email)}`
     : "";
+  // Two independent paths, on purpose. Supabase's mailer is the one that
+  // reliably reaches the inbox (our Gmail-sent mail is prone to spam
+  // filtering), so it carries the code the user actually needs. Our own
+  // approval note still goes out as context — if it's filtered, onboarding
+  // is unaffected because the code email already did the job.
+  await sendSetupCode(reqRow.email);
+
   await sendEmail({
     to: reqRow.email,
     // Plain and transactional. "You're in 🎉" reads as promotional, and Gmail
@@ -118,6 +126,40 @@ export async function approveRequest(
   });
 
   return { ok: true };
+}
+
+/**
+ * Ask Supabase to email the user their one-time setup code — the same message
+ * /claim sends, from Supabase's own mailer rather than our Gmail address.
+ *
+ * Never throws: this is a best-effort head start. If it fails (most likely
+ * Supabase's free-tier auth-email rate limit, which is shared with /claim),
+ * the user can still request a fresh code themselves on /claim, so a failure
+ * here must not abort an approval that already created the account.
+ */
+async function sendSetupCode(email: string): Promise<void> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) return;
+  try {
+    const client = createSupabaseClient(url, anonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    // shouldCreateUser:false — the account was just created above; this only
+    // mails a login code to an existing user.
+    const { error } = await client.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    });
+    if (error) {
+      console.warn("[access] setup-code email not sent:", error.message);
+    }
+  } catch (e) {
+    console.warn(
+      "[access] setup-code email threw:",
+      e instanceof Error ? e.message : String(e),
+    );
+  }
 }
 
 /** Re-send the account-setup ("claim") email to an already-approved user — for
@@ -244,7 +286,7 @@ function approvedEmailHtml(firstName: string, claimUrl: string): string {
   return emailShell(
     `<h1 style="margin:0 0 12px;font-size:20px;">Your access is approved, ${escapeHtml(firstName)}</h1>
      <p style="margin:0 0 10px;color:#4c5a70;">Job Alerts scores job listings against your CV and emails you the ones that match. Your request to join the beta has been approved.</p>
-     <p style="margin:0;color:#4c5a70;">To finish, set up your account: we'll email you a 6-digit code to confirm it's you, then you choose a password.</p>
+     <p style="margin:0;color:#4c5a70;">We've just sent your 6-digit setup code in a separate email. Open the page below, enter that code, and choose a password. If the code has expired, you can request a new one right there.</p>
      ${action}
      ${whyYouGotThis("If it wasn't you, you can ignore this message — the account stays inactive until setup is completed.")}`,
     `Set up your Job Alerts account — one 6-digit code and a password.`,
@@ -257,8 +299,9 @@ function approvedEmailText(firstName: string, claimUrl: string): string {
     `Your access is approved, ${firstName}.\n\n` +
     `Job Alerts scores job listings against your CV and emails you the ones that match. ` +
     `Your request to join the beta has been approved.\n\n` +
-    `To finish, set up your account: we'll email you a 6-digit code to confirm ` +
-    `it's you, then you choose a password.${where}` +
+    `We've just sent your 6-digit setup code in a separate email. Open the page ` +
+    `below, enter that code, and choose a password. If the code has expired, ` +
+    `you can request a new one right there.${where}` +
     `\n--\nYou're receiving this because you requested access to Job Alerts with ` +
     `this email address. If it wasn't you, ignore this message — the account ` +
     `stays inactive until setup is completed.\n`

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 import { ArrowRight, CheckCircle2, MailWarning } from "lucide-react";
 import { signupAction, type AuthState } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,22 @@ export function SignupForm() {
             spam and mark it &ldquo;Not spam&rdquo; so future emails arrive.
           </p>
         </div>
+
+        {/* Safety net: /claim is token-less and self-serve, so a filtered
+            approval email can't strand anyone — they can start setup from
+            here on their own once approved. */}
+        <p className="mt-4 text-left text-[13px] leading-relaxed text-[var(--text-secondary)]">
+          Email never arrived? Once you&rsquo;ve been approved you can start
+          setup yourself at{" "}
+          <Link
+            href="/claim"
+            className="font-medium text-[var(--accent-400)] underline underline-offset-2 hover:text-[var(--accent-300)]"
+          >
+            the setup page
+          </Link>{" "}
+          — enter the address you signed up with and we&rsquo;ll send you a
+          fresh code.
+        </p>
       </div>
     );
   }
