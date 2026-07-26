@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Hammer } from "lucide-react";
 import { buttonStyles } from "@/components/ui/button";
+import { DeliverabilityNotice } from "@/components/brand/deliverability-notice";
 import type { DashboardState } from "../_lib/dashboard-state";
 
 interface OnboardingStripProps {
   state: DashboardState;
+  /** Address the daily digest is sent from, so we can name it in the notice. */
+  senderEmail?: string;
 }
 
-export function OnboardingStrip({ state }: OnboardingStripProps) {
+export function OnboardingStrip({ state, senderEmail }: OnboardingStripProps) {
   const { user, hasCv, hasPrefs, activeSearches } = state;
   const step = !hasCv ? "cv" : !hasPrefs || activeSearches === 0 ? "prefs" : "ready";
 
@@ -55,6 +58,11 @@ export function OnboardingStrip({ state }: OnboardingStripProps) {
                 : "Set preferences"
           }
         />
+
+        {/* Repeated here because it decides whether they ever SEE the product:
+            the daily digest comes from our own address, which lands in spam
+            until the recipient rescues it once. */}
+        <DeliverabilityNotice senderEmail={senderEmail} className="mt-4" />
       </div>
     </>
   );

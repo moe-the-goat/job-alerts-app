@@ -28,7 +28,10 @@ export default async function ClaimPage({
       title="Set up your account"
       subtitle="You're approved. Enter your email and we'll send you a one-time code to finish setting up."
     >
-      <ClaimForm initialEmail={email ?? ""} />
+      <ClaimForm
+        initialEmail={email ?? ""}
+        senderEmail={process.env.SENDER_EMAIL ?? ""}
+      />
     </AuthShell>
   );
 }

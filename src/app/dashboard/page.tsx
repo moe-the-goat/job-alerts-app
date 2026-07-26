@@ -10,5 +10,7 @@ export const metadata: Metadata = {
 export default async function DashboardIndex() {
   const state = await loadDashboardState();
   if (state.ready) redirect("/dashboard/feedback");
-  return <OnboardingStrip state={state} />;
+  return (
+    <OnboardingStrip state={state} senderEmail={process.env.SENDER_EMAIL ?? ""} />
+  );
 }

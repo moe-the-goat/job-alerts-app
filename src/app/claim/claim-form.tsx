@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DeliverabilityNotice } from "@/components/brand/deliverability-notice";
 
 /**
  * Account claim via a USER-INITIATED one-time code.
@@ -21,7 +22,13 @@ import { Input } from "@/components/ui/input";
  * Flow: enter email → signInWithOtp emails a code → enter code → verifyOtp
  * establishes the session → /auth/reset-password to set a password → dashboard.
  */
-export function ClaimForm({ initialEmail = "" }: { initialEmail?: string }) {
+export function ClaimForm({
+  initialEmail = "",
+  senderEmail = "",
+}: {
+  initialEmail?: string;
+  senderEmail?: string;
+}) {
   const router = useRouter();
   const [step, setStep] = React.useState<"email" | "code">("email");
   const [email, setEmail] = React.useState(initialEmail);
@@ -146,6 +153,12 @@ export function ClaimForm({ initialEmail = "" }: { initialEmail?: string }) {
         {pending ? "Verifying…" : "Verify and continue"}
         {!pending && <ArrowRight className="h-4 w-4" />}
       </Button>
+
+      {/* Shown while they're in their inbox copying the code — the one moment
+          they're guaranteed to be looking at their mail, and our approval
+          email is sitting in their spam folder right now. */}
+      <DeliverabilityNotice senderEmail={senderEmail} />
+
       <button
         type="button"
         onClick={() => {
