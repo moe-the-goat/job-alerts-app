@@ -30,9 +30,9 @@ export function DeliverabilityNotice({
     >
       <MailWarning className="mt-0.5 h-5 w-5 shrink-0 text-[var(--highlight-600)]" />
       <div className="text-[13px] leading-relaxed text-[var(--text-primary)]">
-        <p className="font-medium">One important step — do this now</p>
+        <p className="font-medium">Keep your job emails out of spam</p>
         <p className="mt-1 text-[var(--text-secondary)]">
-          Your daily job matches are emailed
+          Your daily matches are sent
           {senderEmail ? (
             <>
               {" "}
@@ -44,14 +44,13 @@ export function DeliverabilityNotice({
           ) : (
             " from us"
           )}
-          , and that first message often lands in <strong>spam</strong>. Open
-          your spam or junk folder, find it, and mark it{" "}
-          <strong>&ldquo;Not spam&rdquo;</strong> (and add the address to your
-          contacts).
+          . Add that address to your contacts now, so the daily emails land in
+          your inbox.
         </p>
         <p className="mt-1.5 text-[var(--text-tertiary)]">
-          Skip this and your job emails may keep going to spam — you&rsquo;d
-          never see them.
+          If one ever shows up in spam or junk, open it and mark it{" "}
+          <strong>&ldquo;Not spam&rdquo;</strong> — otherwise the rest will keep
+          going there too.
         </p>
       </div>
     </div>
